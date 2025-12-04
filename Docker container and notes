@@ -1,0 +1,22 @@
+docker volume create db_data
+
+docker run -d \
+--name testcontainer-mysql-db \
+--restart always \
+-p 3306:3306 \
+-e MYSQL_ROOT_PASSWORD=root \
+-v db_data:/var/lib/mysql \
+-v /Users/ebbaandersson/Desktop/Utvecklingmotdatabaser/databas-jdbc-eeebbaandersson/src/main/resources/myconfig/my.cnf/TILL/my.cnf:/etc/mysql/conf.d/my.cnf \
+-v //Users/ebbaandersson/Desktop/Utvecklingmotdatabaser/databas-jdbc-eeebbaandersson/src/main/resources/init.sql \
+mysql:8.0
+
+
+
+// Kod för att kunna köra main-metoden frpn terminalen
+
+java -cp "target/classes:target/dependency/*" \
+    -DdevMode=true \
+    -DAPP_JDBC_URL="jdbc:mysql://localhost:3306/testdb" \
+    -DAPP_DB_USER=root \
+    -DAPP_DB_PASS=root \
+    com.example.Main
