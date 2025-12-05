@@ -3,6 +3,7 @@ package com.example;
 import java.nio.file.attribute.UserPrincipal;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class Main {
         //Todo: Starting point for your code
 
         // Prompt for Username/password on startup
-        IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀-- \n To sign in please enter your information below:");
+        IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀-- \n Sign in by entering your information below:");
         String username = IO.readln("Username: ");
         String password = IO.readln("Password: ");
 
@@ -55,18 +56,22 @@ public class Main {
         // if result = valid: move on and display application menu-options
 
 
-
 //        if (arguments.length == 0) {
 //            System.out.println("Missing arguments.");
 //            return;
 //        }
 
 
-        // Move into switch or separate method like "manageMenuOptions"?
+        // Move to switch (1-6+0) or new method like "manageMenuOptions"?
 
+        // 1
         listMoonMissions(jdbcUrl, dbUser, dbPass);
+        // 2
         getMoonMissionByID(jdbcUrl, dbUser, dbPass);
+        // 3
         countMoonMissionsByYear(jdbcUrl, dbUser, dbPass);
+        //4
+        createAccount(jdbcUrl, dbUser, dbPass);
 
     }
 
@@ -104,9 +109,7 @@ public class Main {
         // finns det någon contains i inbyggt i SQL?
         //Annars en if-sats och räkna upp med equals?
 
-
     }
-
 
     private static void listMoonMissions(String jdbcUrl, String dbUser, String dbPass) {
         String query = "select spacecraft from moon_mission";
@@ -185,19 +188,56 @@ public class Main {
             throw new RuntimeException(e);
 
         }
+    }
+
+    // SQL - INSERT
+    // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
+    public static void createAccount(String jdbcUrl, String dbUser, String dbPass){
+
+        // prompts: first name, last name, ssn, password; prints confirmation
+        String firstName = IO.readln("Enter first name: ");
+        String lastName = IO.readln("Enter last name: ");
+        String ssn  = IO.readln("Enter Social Security Number (SSN): ");
+        String password = IO.readln("Enter password: ");
+
+        // Insert into account ...
+        String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+             PreparedStatement pstmt = connection.prepareStatement(insert)
+        ) {
+
+            pstmt.setString(1, firstName);
+            pstmt.setString(2, lastName);
+            pstmt.setString(3, ssn);
+            pstmt.setString(4, password);
+
+           int rowsAffected =  pstmt.executeUpdate();
+           if (rowsAffected > 0) {
+               System.out.println("Account created successfully!");
+           } else  {
+               System.out.println("Error: Failed to create account");
+           }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // SQL - UPDATE
+    // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
+    public static void updateAccountPassword(String jdbcUrl, String dbUser, String dbPass){
+        // prompts: user_id, new password; prints confirmation
+        int userID = Integer.parseInt(IO.readln("Enter user_id : "));
+        String newPassword = IO.readln("Enter new password : ");
+
 
     }
 
-    public static void createAccount(){
-        System.out.println("--Create Account--");
-    }
-
-    public static void updateAccount(){
-        System.out.println("--Update Account--");
-    }
-
+    // SQL - DELETE
+    // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
     public static void deleteAccount(){
-        System.out.println("--Delete Account--");
+       // prompts: user_id; prints confirmation
     }
  }
 
