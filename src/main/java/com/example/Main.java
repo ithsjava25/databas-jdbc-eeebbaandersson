@@ -1,5 +1,6 @@
 package com.example;
 
+import java.nio.file.attribute.UserPrincipal;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -41,11 +42,17 @@ public class Main {
         }
         //Todo: Starting point for your code
 
-        // Prompt för Username/password
-        //Validate them against account table (user + password)
+        // Prompt for Username/password on startup
+        IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀-- \n To sign in please enter your information below:");
+        String username = IO.readln("Username: ");
+        String password = IO.readln("Password: ");
 
-        //listMoonMissions(jdbcUrl, dbUser, dbPass);
-        getMoonMissionByID(jdbcUrl, dbUser, dbPass);
+        //Validation against account table (user + password) by calling method
+        // validateUserLogin(jdbcUrl, dbUser, dbPass, username, password);
+
+        // Manage result from login-attempt:
+        // if result = invalid display: "Invalid username or password" and option to exit program by entering "0"
+        // if result = valid: move on and display application menu-options
 
 
 
@@ -53,6 +60,13 @@ public class Main {
 //            System.out.println("Missing arguments.");
 //            return;
 //        }
+
+
+        // Move into switch or separate method like "manageMenuOptions"?
+
+        listMoonMissions(jdbcUrl, dbUser, dbPass);
+        getMoonMissionByID(jdbcUrl, dbUser, dbPass);
+        countMoonMissionsByYear(jdbcUrl, dbUser, dbPass);
 
     }
 
@@ -83,8 +97,14 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
-    public static void greetUser(){
-        System.out.println("--Welcome to this MoonMission Application!--");
+    // Tar connection (3x variabler) + username/password som argument
+    public static void validateUserLogin(String jdbcUrl, String dbUser, String dbPass, String username, String password) {
+        // SQL-Fråga här?
+
+        // finns det någon contains i inbyggt i SQL?
+        //Annars en if-sats och räkna upp med equals?
+
+
     }
 
 
@@ -97,7 +117,8 @@ public class Main {
 
             try (ResultSet result = pstmt.executeQuery()) {
                 while (result.next()) {
-                    System.out.println(result.getString("spacecraft"));
+                    String spacecraft = result.getString("spacecraft");
+                    System.out.println("spacecraft: " + spacecraft);
                 }
             }
 
@@ -126,8 +147,44 @@ public class Main {
     }
 }
 
-    public static void countMoonMissionsByYear(){
-        System.out.println("--Count Moon Missions by Year--");
+    public static void countMoonMissionsByYear(String jdbcUrl, String dbUser, String dbPass){
+        String inputString = IO.readln("Enter a year between 1958-2019 to find out the number of missions launched that year: ");
+        int inputYear;
+
+        try {
+            inputYear = Integer.parseInt(inputString);
+            if (inputYear < 1958 || inputYear > 2019) {
+                System.out.println("Error: Year must be between 1958-2019.");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Error: Invalid input, please enter a valid number");
+            return;
+        }
+
+        String query = "select count(m.launch_date) as mission_launched " +
+                "from moon_mission m " +
+                "where year(m.launch_date) = ?";
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+             PreparedStatement pstmt = connection.prepareStatement(query)
+        ) {
+
+            pstmt.setInt(1, inputYear);
+
+            try (ResultSet result = pstmt.executeQuery()) {
+                if (result.next()) {
+                    int mission_launched = result.getInt("mission_launched");
+                    System.out.println("year: " + inputYear + " missions_launched: " + mission_launched);
+                } else {
+                    System.out.println("No missions found for year: " + inputYear);
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+
+        }
 
     }
 
@@ -136,7 +193,7 @@ public class Main {
     }
 
     public static void updateAccount(){
-        System.out.println("--Create Account--");
+        System.out.println("--Update Account--");
     }
 
     public static void deleteAccount(){
