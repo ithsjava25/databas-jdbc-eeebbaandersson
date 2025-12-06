@@ -1,27 +1,15 @@
 package com.example;
 
-import java.nio.file.attribute.UserPrincipal;
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class Main {
-
-    // Fält som lagrar argument
-    private final String[] arguments;
-
-    // Konstruktor för att tar emot argumenten
-    public Main(String[] arguments) {
-        this.arguments = arguments;
-    }
 
     static void main(String[] args) {
         if (isDevMode(args)) {
             DevDatabaseInitializer.start();
         }
-        new Main(args).run();
+        new Main().run();
     }
 
     public void run() {
@@ -45,15 +33,21 @@ public class Main {
 
         // Prompt for Username/password on startup
         IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
-//        String username = IO.readln("Username: ");
-//        String password = IO.readln("Password: ");
 
-        //Validation against account table (user + password) by calling method
-         validateUserLogin(jdbcUrl, dbUser, dbPass);
 
-        // Manage result from login-attempt:
-        // if result = invalid display: "Invalid username or password" and option to exit program by entering "0"
-        // if result = valid: move on and display application menu-options + add IO.readline() for userchoice!
+        //Prompts för userinput (name+password) and validates them
+         boolean result = validateUserLogin(jdbcUrl, dbUser, dbPass);
+
+        // Manages the result from login-attempt:
+         if (result) {
+             System.out.println("Login successful, welcome!");
+             // Add method call to display menu-options?
+             //...
+         } else {
+             System.out.println("Login failed. Invalid username or password provided.");
+             // Add option to exit program by entering "0"
+             // ...
+         }
 
 
 //        if (arguments.length == 0) {
@@ -106,8 +100,8 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
-    // Tar connection (3x variabler) + username/password som argument
-    public static void validateUserLogin(String jdbcUrl, String dbUser, String dbPass) {
+    // Todo: If invalid login, provide option to exit by pressing "0"
+    public static boolean validateUserLogin(String jdbcUrl, String dbUser, String dbPass) {
         IO.println("Sign in by entering your information below:");
         String username = IO.readln("Username: ");
         String password = IO.readln("Password: ");
@@ -122,9 +116,10 @@ public class Main {
 
             try (ResultSet result = pstmt.executeQuery()) {
                 if (result.next()) {
-                    System.out.println("Login successful! Welcome " + username + ".");
+                    return true;
                 } else {
-                    System.out.println("Login failed. Invalid username or password provided.");
+                    return false;
+
                 }
             }
 
@@ -212,7 +207,7 @@ public class Main {
         }
     }
 
-    // SQL - INSERT
+
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
     public static void createAccount(String jdbcUrl, String dbUser, String dbPass){
 
@@ -304,8 +299,13 @@ public class Main {
 
     // SQL - DELETE
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
-    public static void deleteAccount(){
+    public static void deleteAccount(String jdbcUrl, String dbUser, String dbPass){
        // prompts: user_id; prints confirmation
+
+        //Behöver göra om till en int, men metoden parseInt kommer ge fel som i update-metoden?
+        String userId = IO.readln("Enter user ID: ");
+
+        String delete = "delete from account where user_id = ?";
     }
  }
 
