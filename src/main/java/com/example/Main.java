@@ -44,16 +44,16 @@ public class Main {
         //Todo: Starting point for your code
 
         // Prompt for Username/password on startup
-        IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀-- \n Sign in by entering your information below:");
-        String username = IO.readln("Username: ");
-        String password = IO.readln("Password: ");
+        IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
+//        String username = IO.readln("Username: ");
+//        String password = IO.readln("Password: ");
 
         //Validation against account table (user + password) by calling method
-        // validateUserLogin(jdbcUrl, dbUser, dbPass, username, password);
+         validateUserLogin(jdbcUrl, dbUser, dbPass);
 
         // Manage result from login-attempt:
         // if result = invalid display: "Invalid username or password" and option to exit program by entering "0"
-        // if result = valid: move on and display application menu-options
+        // if result = valid: move on and display application menu-options + add IO.readline() for userchoice!
 
 
 //        if (arguments.length == 0) {
@@ -72,6 +72,10 @@ public class Main {
         countMoonMissionsByYear(jdbcUrl, dbUser, dbPass);
         //4
         createAccount(jdbcUrl, dbUser, dbPass);
+        // 5
+        updateAccountPassword(jdbcUrl, dbUser, dbPass);
+        // 6
+        // 0
 
     }
 
@@ -103,15 +107,33 @@ public class Main {
     }
 
     // Tar connection (3x variabler) + username/password som argument
-    public static void validateUserLogin(String jdbcUrl, String dbUser, String dbPass, String username, String password) {
-        // SQL-Fråga här?
+    public static void validateUserLogin(String jdbcUrl, String dbUser, String dbPass) {
+        IO.println("Sign in by entering your information below:");
+        String username = IO.readln("Username: ");
+        String password = IO.readln("Password: ");
 
-        // finns det någon contains i inbyggt i SQL?
-        //Annars en if-sats och räkna upp med equals?
+        String query = "select name, password from account where name = ? and password = ?";
 
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+             PreparedStatement pstmt = connection.prepareStatement(query)
+        ) {
+            pstmt.setString(1,username);
+            pstmt.setString(2, password);
+
+            try (ResultSet result = pstmt.executeQuery()) {
+                if (result.next()) {
+                    System.out.println("Login successful! Welcome " + username + ".");
+                } else {
+                    System.out.println("Login failed. Invalid username or password provided.");
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static void listMoonMissions(String jdbcUrl, String dbUser, String dbPass) {
+    public static void listMoonMissions(String jdbcUrl, String dbUser, String dbPass) {
         String query = "select spacecraft from moon_mission";
 
         try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
@@ -161,7 +183,7 @@ public class Main {
                 return;
             }
         } catch (NumberFormatException e) {
-            System.out.println("Error: Invalid input, please enter a valid number");
+            System.out.println("Error: Invalid input, please enter a valid number.");
             return;
         }
 
@@ -216,7 +238,7 @@ public class Main {
            if (rowsAffected > 0) {
                System.out.println("Account created successfully!");
            } else  {
-               System.out.println("Error: Failed to create account");
+               System.out.println("Error: Failed to create account.");
            }
 
         } catch (SQLException e) {
@@ -226,12 +248,58 @@ public class Main {
 
     // SQL - UPDATE
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
+    // Todo : Failar mot test just nu!
     public static void updateAccountPassword(String jdbcUrl, String dbUser, String dbPass){
         // prompts: user_id, new password; prints confirmation
-        int userID = Integer.parseInt(IO.readln("Enter user_id : "));
-        String newPassword = IO.readln("Enter new password : ");
+        int userId;
+        String userIdInput;
 
+        while (true) {
+            userIdInput = IO.readln("Enter user ID: ");
 
+            if (userIdInput == null) {
+                System.out.println("Error: Input stream termined unexpectedly. Exiting.");
+                return;
+
+            }
+            if (userIdInput.trim().isEmpty()) {
+                System.out.println("Error: User ID must be provided.");
+                continue;
+            }
+
+            try{
+                userId = Integer.parseInt(userIdInput);
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Invalid User ID format. Please enter a number");
+            }
+        }
+
+        String newPassword = IO.readln("Enter a new password : ");
+
+        if  (newPassword == null || newPassword.trim().isEmpty()){
+            System.out.println("Error: Password must be provided.");
+            return;
+        }
+
+        String update = "update account set password = ? where user_id = ?";
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+             PreparedStatement pstmt = connection.prepareStatement(update)
+        ) {
+
+            pstmt.setString(1, newPassword);
+            pstmt.setInt(2, userId);
+
+            int rowsAffected =  pstmt.executeUpdate();
+           if (rowsAffected > 0) {
+               System.out.println("Account updated successfully!");
+           } else  {
+               System.out.println("Error: Failed to update account. User ID " + userId + " might not exist.");
+           }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // SQL - DELETE
