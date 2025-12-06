@@ -1,9 +1,14 @@
 package com.example;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.*;
 import java.util.Arrays;
 
 public class Main {
+
+    private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     static void main(String[] args) {
         if (isDevMode(args)) {
@@ -18,35 +23,29 @@ public class Main {
         String dbUser = resolveConfig("APP_DB_USER", "APP_DB_USER");
         String dbPass = resolveConfig("APP_DB_PASS", "APP_DB_PASS");
 
-        if (jdbcUrl == null || dbUser == null || dbPass == null) {
-            throw new IllegalStateException(
-                    "Missing DB configuration. Provide APP_JDBC_URL, APP_DB_USER, APP_DB_PASS " +
-                            "as system properties (-Dkey=value) or environment variables.");
-        }
-
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
-           System.out.println("SUCCESS: Database connection established.");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
         //Todo: Starting point for your code
 
-        // Prompt for Username/password on startup
+        // Skapar DataSource
+        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
+
+        // Testar databanslutningen via metod från SimpleDriverManagerDataSource
+        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
+            sdmds.validateConnection();
+        }
+
         IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
-
-
-        //Prompts för userinput (name+password) and validates them
+        
+        //Prompts for Username/password and validates them against table account (name+password)
          boolean result = validateUserLogin(jdbcUrl, dbUser, dbPass);
 
         // Manages the result from login-attempt:
          if (result) {
              System.out.println("Login successful, welcome!");
-             // Add method call to display menu-options?
-             //...
+             // Todo: Add method call to display menu-options?
+
          } else {
              System.out.println("Login failed. Invalid username or password provided.");
-             // Add option to exit program by entering "0"
-             // ...
+             // Todo: Add option to exit by pressing "--0"
          }
 
 
@@ -54,7 +53,6 @@ public class Main {
 //            System.out.println("Missing arguments.");
 //            return;
 //        }
-
 
         // Move to switch (1-6+0) or new method like "manageMenuOptions"?
 
@@ -69,7 +67,9 @@ public class Main {
         // 5
         updateAccountPassword(jdbcUrl, dbUser, dbPass);
         // 6
+        //deleteAccount(jdbcUrl, dbUser, dbPass);
         // 0
+        // Exits program..
 
     }
 
@@ -100,7 +100,8 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
-    // Todo: If invalid login, provide option to exit by pressing "0"
+    public static void manageMenuOptions(String jdbcUrl, String dbUser, String dbPass) {}
+
     public static boolean validateUserLogin(String jdbcUrl, String dbUser, String dbPass) {
         IO.println("Sign in by entering your information below:");
         String username = IO.readln("Username: ");
@@ -207,7 +208,7 @@ public class Main {
         }
     }
 
-
+    // För create/update/delete:
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
     public static void createAccount(String jdbcUrl, String dbUser, String dbPass){
 
@@ -241,8 +242,6 @@ public class Main {
         }
     }
 
-    // SQL - UPDATE
-    // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
     // Todo : Failar mot test just nu!
     public static void updateAccountPassword(String jdbcUrl, String dbUser, String dbPass){
         // prompts: user_id, new password; prints confirmation
@@ -262,11 +261,11 @@ public class Main {
                 continue;
             }
 
-            try{
+            try {
                 userId = Integer.parseInt(userIdInput);
                 break;
             } catch (NumberFormatException e) {
-                System.out.println("Error: Invalid User ID format. Please enter a number");
+                System.out.println("Error: Invalid User ID format. Please enter a number.");
             }
         }
 
@@ -297,12 +296,10 @@ public class Main {
         }
     }
 
-    // SQL - DELETE
-    // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
     public static void deleteAccount(String jdbcUrl, String dbUser, String dbPass){
        // prompts: user_id; prints confirmation
 
-        //Behöver göra om till en int, men metoden parseInt kommer ge fel som i update-metoden?
+        //Behöver göras om till en int, men metoden parseInt kommer ge fel som i update-metoden?
         String userId = IO.readln("Enter user ID: ");
 
         String delete = "delete from account where user_id = ?";
