@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class Main {
 
@@ -30,15 +31,22 @@ public class Main {
         }
 
         try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
-            if (connection != null){
                 System.out.println("SUCCESS: Database connection established.");
+
+                Scanner scanner = new Scanner(System.in);
+
+            if (!validateUserLogin(connection, scanner)) {
+                System.out.println("Invalid username or password provided. Exiting the application.");
+                return;
             }
+            runMenuOptions(connection, scanner);
+
+
         } catch (SQLException e) {
             throw new RuntimeException("FAILURE: Database connection not established.");
         }
 
         //Todo: Starting point for your code
-
         Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
 
         // Skapar DataSource-objekt
@@ -49,37 +57,22 @@ public class Main {
 //            sdmds.validateConnection();
 //        }
 
-        //Prompts for Username/password and validates them against table account (name+password)
-        //Skickade tidigare in (jdbcUrl, dbUser, dbPass), för deklarering av Connection connection
-         boolean result = validateUserLogin(connection);
 
-        // Manages the result from login-attempt:
-         if (result) {
-             System.out.println("Login successful!");
-             IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
-             // Metod för att styra menu
 
-         } else {
-             System.out.println("Login failed. Invalid username or password provided.");
-             // Todo: Add option to exit by pressing "0"
-             // Program should exit..
-         }
-
-        // Todo: Add method call to display menu-options?
-//         displayMenuOptions(connection);
+//
 //         System.console().readLine();
 
        // String userInput = IO.readln("Choose your option: ");
         // Move to switch (1-6+0)
 
         // 1
-        listMoonMissions(connection);
+       // listMoonMissions(connection);
         // 2
-        getMoonMissionByID(connection);
+      //  getMoonMissionByID(connection);
         // 3
-        countMoonMissionsByYear(connection);
+      //  countMoonMissionsByYear(connection);
         //4
-        createAccount(connection);
+       // createAccount(connection);
         // 5
        // updateAccountPassword(connection);
         // 6
@@ -116,33 +109,45 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
-    public static boolean validateUserLogin(Connection connection) {
-        IO.println("To sign in please enter your information below:");
-        String username = IO.readln("Username: ");
-        String password = IO.readln("Password: ");
+    private boolean validateUserLogin(Connection connection, Scanner scanner) {
+        System.out.println("To sign in please enter your information below:");
 
-        String query = "select name, password from account where name = ? and password = ?";
+        boolean isValid = false;
 
-             try (PreparedStatement pstmt = connection.prepareStatement(query);
-        ) {
-            pstmt.setString(1,username);
-            pstmt.setString(2, password);
-
-            try (ResultSet result = pstmt.executeQuery()) {
-                if (result.next()) {
-                    return true;
-                } else {
-                    return false;
-                }
+        while (!isValid) {
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+            if (username.equals("0")) {
+                return false;
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
+            if (password.equals("0")) {
+                return false;
+            }
+            String query = "select name, password from account where name = ? and password = ?";
+
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, username);
+                pstmt.setString(2, password);
+
+                try (ResultSet result = pstmt.executeQuery()) {
+                    if (result.next()) {
+                        System.out.println("Login successful!");
+                        return true;
+                    } else {
+                        System.out.println("Login failed. Try again, or exit by pressing '0'.");
+                    }
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
+        return isValid;
     }
 
-    public static void displayMenuOptions(Connection connection) throws SQLException {
-
+    private void displayMenuOptions() {
         System.out.format(
                 "   1| List moon missions (prints spacecraft names from `moon_mission`).\n" +
                 "   2| Get a moon mission by mission_id (prints details for that mission).\n" +
@@ -151,44 +156,70 @@ public class Main {
                 "   5| Update an account password (prompts: user_id, new password; prints confirmation).\n" +
                 "   6| Delete an account (prompts: user_id; prints confirmation).\n" +
                 "   0| Exit.");
+        System.out.println(" ");
     }
 
-    public static void runMenu(Connection connection) throws SQLException {
+    private void runMenuOptions(Connection connection, Scanner scanner) throws SQLException {
 
+        System.out.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
+       displayMenuOptions();
+
+       while (true) {
+           System.out.println("Enter your choice: ");
+           String inputChoice = scanner.nextLine();
+           switch (inputChoice) {
+               case "1" -> listMoonMissions(connection);
+               case "2" -> getMoonMissionByID(connection, scanner);
+               case "3" ->  countMoonMissionsByYear(connection, scanner);
+               case "4" -> createAccount(connection, scanner);
+               case "5" -> updateAccountPassword(connection, scanner);
+               case "6" -> deleteAccount(connection, scanner);
+               case "0" -> {
+                   System.out.println("Exiting the application.");
+                   return;
+               }
+               default -> System.out.println("Invalid choice. Try again.");
+           }
+       }
     }
 
-    // Todo: Addera visnig av alla kolumner!
-    public static void listMoonMissions(Connection connection) throws SQLException {
+    private void listMoonMissions(Connection connection) throws SQLException {
         String query = "select spacecraft from moon_mission";
 
-            try (PreparedStatement pstmt = connection.prepareStatement(query);
-        ) {
-
-            try (ResultSet result = pstmt.executeQuery()) {
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            ResultSet result = pstmt.executeQuery();
                 while (result.next()) {
                     String spacecraft = result.getString("spacecraft");
                     System.out.println("spacecraft: " + spacecraft);
                 }
-            }
-
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    // Todo: Addera inläsning av ID input från användaren
-    public static void getMoonMissionByID(Connection connection) throws SQLException {
-        String query = "select mission_id, spacecraft from moon_mission";
+    // Todo: Fixa display av alla mission detaljer
+    private void getMoonMissionByID(Connection connection, Scanner scanner) throws SQLException {
 
-        try (PreparedStatement pstmt = connection.prepareStatement(query);
-        ) {
-            try (ResultSet result = pstmt.executeQuery()) {
+        System.out.println("Enter moon mission id: ");
+        String inputId = scanner.nextLine().trim();
+
+        String query = "select * from moon_mission where mission_id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, inputId);
+            ResultSet result = pstmt.executeQuery();
+
                 while (result.next()) {
-                    int id = result.getInt("mission_id");
+                    int missionId = result.getInt("mission_id");
                     String spacecraft = result.getString("spacecraft");
-                    System.out.println("mission_id: " + id + " spacecraft: " + spacecraft);
+                    java.util.Date date = result.getDate("launch_date");
+                    String carrierRocket = result.getString("carrier_rocket");
+                    String missionType = result.getString("mission_type");
+                    String outcome = result.getString("outcome");
+
+                    System.out.println("mission_id: " + missionId + " spacecraft: " + spacecraft);
                 }
-            }
+
 
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -196,12 +227,13 @@ public class Main {
     }
 }
 
-    public static void countMoonMissionsByYear(Connection connection) throws SQLException {
-        String inputString = IO.readln("Enter a year between 1958-2019 to find out the number of missions launched for that year: ");
-        int inputYear;
+    private void countMoonMissionsByYear(Connection connection, Scanner scanner) throws SQLException {
+
+        System.out.println("Enter a year between 1958-2019 to find out the number of missions launched for that year: ");
+        String year = scanner.nextLine().trim();
+        int inputYear  = Integer.parseInt(year);
 
         try {
-            inputYear = Integer.parseInt(inputString);
             if (inputYear < 1958 || inputYear > 2019) {
                 System.out.println("Error: Year must be between 1958-2019.");
                 return;
@@ -211,46 +243,43 @@ public class Main {
             return;
         }
 
-        String query = "select count(m.launch_date) as mission_launched " +
-                "from moon_mission m " +
-                "where year(m.launch_date) = ?";
+        String query = "select count(*) as mission_launched " +
+                "from moon_mission " +
+                "where launch_date = ?";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(query);
-        ) {
-
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setInt(1, inputYear);
+            ResultSet result = pstmt.executeQuery();
 
-            try (ResultSet result = pstmt.executeQuery()) {
                 if (result.next()) {
-                    int mission_launched = result.getInt("mission_launched");
-                    System.out.println("year: " + inputYear + " missions_launched: " + mission_launched);
-                } else {
-                    System.out.println("No missions found for year: " + inputYear);
+                    int count = result.getInt("mission_launched");
+                    System.out.println("Year: " + inputYear + " missions_launched: " + count);
                 }
-            }
 
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("No data from selceted year was found.");
 
         }
     }
 
     // För create/update/delete:
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
-    public static void createAccount(Connection connection) throws SQLException {
+    private void createAccount(Connection connection, Scanner scanner) throws SQLException {
+        System.out.println("To create a new account please enter your information below:");
 
-        // prompts: first name, last name, ssn, password; prints confirmation
-        String firstName = IO.readln("Enter first name: ");
-        String lastName = IO.readln("Enter last name: ");
-        String ssn  = IO.readln("Enter Social Security Number (SSN): ");
-        String password = IO.readln("Enter password: ");
+        System.out.println("First name: ");
+        String firstName = scanner.nextLine();
+        System.out.println("Last name: ");
+        String lastName = scanner.nextLine();
+        System.out.println("Social Security Number (SSN): ");
+        String ssn = scanner.nextLine();
+        System.out.println("Password: ");
+        String password = scanner.nextLine();
 
         // Insert into account ...
         String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(insert);
-        ) {
-
+        try (PreparedStatement pstmt = connection.prepareStatement(insert)) {
             pstmt.setString(1, firstName);
             pstmt.setString(2, lastName);
             pstmt.setString(3, ssn);
@@ -268,8 +297,7 @@ public class Main {
         }
     }
 
-    // Todo : Failar mot test just nu!
-    public static void updateAccountPassword(Connection connection) throws SQLException {
+    private void updateAccountPassword(Connection connection, Scanner scanner) throws SQLException {
         // prompts: user_id, new password; prints confirmation
         int userId;
         String userIdInput;
@@ -321,8 +349,7 @@ public class Main {
         }
     }
 
-    // Todo: Kommer antagligen faila på samma sätt som update ovan?
-    public static void deleteAccount(Connection connection) throws SQLException {
+    private void deleteAccount(Connection connection, Scanner scanner) throws SQLException {
        // prompts: user_id; prints confirmation
 
         //Behöver göras om till en int, men metoden parseInt kommer ge fel som i update-metoden?
