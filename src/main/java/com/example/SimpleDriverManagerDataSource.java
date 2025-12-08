@@ -4,7 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public class SimpleDriverManagerDataSource implements  DataSource{
+public class SimpleDriverManagerDataSource implements DataSource{
     private final String jdbcUrl;
     private final String dbUser;
     private final String dbPass;

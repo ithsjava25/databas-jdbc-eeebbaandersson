@@ -1,5 +1,9 @@
 package com.example;
 
-public class AccountRepository {
-    // Addera SLQ-frågor/logik som hanterar table Account?
+public interface AccountRepository {
+
+    // Definierar metoder för affärslogik (finns just nu kvar i main)
+
+
+
 }

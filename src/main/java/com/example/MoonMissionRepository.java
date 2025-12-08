@@ -1,5 +1,6 @@
 package com.example;
 
-public class MoonMissionRepository {
-    // Addera SLQ-frågor/logik som hanterar table MoonMissions?
+public interface MoonMissionRepository {
+
+    // Definierar metoder för affärslogik (finns just nu kvar i main)
 }

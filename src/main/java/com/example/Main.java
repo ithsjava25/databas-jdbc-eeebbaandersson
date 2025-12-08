@@ -10,64 +10,80 @@ public class Main {
 
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-    static void main(String[] args) {
+    static void main(String[] args) throws SQLException {
         if (isDevMode(args)) {
             DevDatabaseInitializer.start();
         }
         new Main().run();
     }
 
-    public void run() {
+    public void run() throws SQLException {
         // Resolve DB settings with precedence: System properties -> Environment variables
         String jdbcUrl = resolveConfig("APP_JDBC_URL", "APP_JDBC_URL");
         String dbUser = resolveConfig("APP_DB_USER", "APP_DB_USER");
         String dbPass = resolveConfig("APP_DB_PASS", "APP_DB_PASS");
 
-        //Todo: Starting point for your code
-
-        // Skapar DataSource
-        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
-
-        // Testar databanslutningen via metod från SimpleDriverManagerDataSource
-        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
-            sdmds.validateConnection();
+        if (jdbcUrl == null || dbUser == null || dbPass == null) {
+            throw  new IllegalArgumentException(
+                    "Missing DB configuration. Provide APP_JDBC_URL, APP_DB_USER, APP_DB_PASS " +
+                            "as system properties (-Dkey=value) or environment variables.");
         }
 
-        IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
-        
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
+            if (connection != null){
+                System.out.println("SUCCESS: Database connection established.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("FAILURE: Database connection not established.");
+        }
+
+        //Todo: Starting point for your code
+
+        Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+
+        // Skapar DataSource-objekt
+//        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
+//
+//        // Testar databaanslutningen från SimpleDriverManagerDataSource
+//        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
+//            sdmds.validateConnection();
+//        }
+
         //Prompts for Username/password and validates them against table account (name+password)
-         boolean result = validateUserLogin(jdbcUrl, dbUser, dbPass);
+        //Skickade tidigare in (jdbcUrl, dbUser, dbPass), för deklarering av Connection connection
+         boolean result = validateUserLogin(connection);
 
         // Manages the result from login-attempt:
          if (result) {
-             System.out.println("Login successful, welcome!");
-             // Todo: Add method call to display menu-options?
+             System.out.println("Login successful!");
+             IO.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
+             // Metod för att styra menu
 
          } else {
              System.out.println("Login failed. Invalid username or password provided.");
-             // Todo: Add option to exit by pressing "--0"
+             // Todo: Add option to exit by pressing "0"
+             // Program should exit..
          }
 
+        // Todo: Add method call to display menu-options?
+//         displayMenuOptions(connection);
+//         System.console().readLine();
 
-//        if (arguments.length == 0) {
-//            System.out.println("Missing arguments.");
-//            return;
-//        }
-
-        // Move to switch (1-6+0) or new method like "manageMenuOptions"?
+       // String userInput = IO.readln("Choose your option: ");
+        // Move to switch (1-6+0)
 
         // 1
-        listMoonMissions(jdbcUrl, dbUser, dbPass);
+        listMoonMissions(connection);
         // 2
-        getMoonMissionByID(jdbcUrl, dbUser, dbPass);
+        getMoonMissionByID(connection);
         // 3
-        countMoonMissionsByYear(jdbcUrl, dbUser, dbPass);
+        countMoonMissionsByYear(connection);
         //4
-        createAccount(jdbcUrl, dbUser, dbPass);
+        createAccount(connection);
         // 5
-        updateAccountPassword(jdbcUrl, dbUser, dbPass);
+       // updateAccountPassword(connection);
         // 6
-        //deleteAccount(jdbcUrl, dbUser, dbPass);
+       // deleteAccount(connection);
         // 0
         // Exits program..
 
@@ -100,17 +116,14 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
-    public static void manageMenuOptions(String jdbcUrl, String dbUser, String dbPass) {}
-
-    public static boolean validateUserLogin(String jdbcUrl, String dbUser, String dbPass) {
-        IO.println("Sign in by entering your information below:");
+    public static boolean validateUserLogin(Connection connection) {
+        IO.println("To sign in please enter your information below:");
         String username = IO.readln("Username: ");
         String password = IO.readln("Password: ");
 
         String query = "select name, password from account where name = ? and password = ?";
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = connection.prepareStatement(query)
+             try (PreparedStatement pstmt = connection.prepareStatement(query);
         ) {
             pstmt.setString(1,username);
             pstmt.setString(2, password);
@@ -120,7 +133,6 @@ public class Main {
                     return true;
                 } else {
                     return false;
-
                 }
             }
 
@@ -129,11 +141,27 @@ public class Main {
         }
     }
 
-    public static void listMoonMissions(String jdbcUrl, String dbUser, String dbPass) {
+    public static void displayMenuOptions(Connection connection) throws SQLException {
+
+        System.out.format(
+                "   1| List moon missions (prints spacecraft names from `moon_mission`).\n" +
+                "   2| Get a moon mission by mission_id (prints details for that mission).\n" +
+                "   3| Count missions for a given year (prompts: year; prints the number of missions launched that year).\n" +
+                "   4| Create an account (prompts: first name, last name, ssn, password; prints confirmation).\n" +
+                "   5| Update an account password (prompts: user_id, new password; prints confirmation).\n" +
+                "   6| Delete an account (prompts: user_id; prints confirmation).\n" +
+                "   0| Exit.");
+    }
+
+    public static void runMenu(Connection connection) throws SQLException {
+
+    }
+
+    // Todo: Addera visnig av alla kolumner!
+    public static void listMoonMissions(Connection connection) throws SQLException {
         String query = "select spacecraft from moon_mission";
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = connection.prepareStatement(query)
+            try (PreparedStatement pstmt = connection.prepareStatement(query);
         ) {
 
             try (ResultSet result = pstmt.executeQuery()) {
@@ -148,11 +176,11 @@ public class Main {
         }
     }
 
-    public static void getMoonMissionByID(String jdbcUrl, String dbUser, String dbPass){
+    // Todo: Addera inläsning av ID input från användaren
+    public static void getMoonMissionByID(Connection connection) throws SQLException {
         String query = "select mission_id, spacecraft from moon_mission";
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = connection.prepareStatement(query)
+        try (PreparedStatement pstmt = connection.prepareStatement(query);
         ) {
             try (ResultSet result = pstmt.executeQuery()) {
                 while (result.next()) {
@@ -168,8 +196,8 @@ public class Main {
     }
 }
 
-    public static void countMoonMissionsByYear(String jdbcUrl, String dbUser, String dbPass){
-        String inputString = IO.readln("Enter a year between 1958-2019 to find out the number of missions launched that year: ");
+    public static void countMoonMissionsByYear(Connection connection) throws SQLException {
+        String inputString = IO.readln("Enter a year between 1958-2019 to find out the number of missions launched for that year: ");
         int inputYear;
 
         try {
@@ -187,8 +215,7 @@ public class Main {
                 "from moon_mission m " +
                 "where year(m.launch_date) = ?";
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = connection.prepareStatement(query)
+        try (PreparedStatement pstmt = connection.prepareStatement(query);
         ) {
 
             pstmt.setInt(1, inputYear);
@@ -210,7 +237,7 @@ public class Main {
 
     // För create/update/delete:
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
-    public static void createAccount(String jdbcUrl, String dbUser, String dbPass){
+    public static void createAccount(Connection connection) throws SQLException {
 
         // prompts: first name, last name, ssn, password; prints confirmation
         String firstName = IO.readln("Enter first name: ");
@@ -221,8 +248,7 @@ public class Main {
         // Insert into account ...
         String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = connection.prepareStatement(insert)
+        try (PreparedStatement pstmt = connection.prepareStatement(insert);
         ) {
 
             pstmt.setString(1, firstName);
@@ -243,7 +269,7 @@ public class Main {
     }
 
     // Todo : Failar mot test just nu!
-    public static void updateAccountPassword(String jdbcUrl, String dbUser, String dbPass){
+    public static void updateAccountPassword(Connection connection) throws SQLException {
         // prompts: user_id, new password; prints confirmation
         int userId;
         String userIdInput;
@@ -278,8 +304,7 @@ public class Main {
 
         String update = "update account set password = ? where user_id = ?";
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             PreparedStatement pstmt = connection.prepareStatement(update)
+        try (PreparedStatement pstmt = connection.prepareStatement(update);
         ) {
 
             pstmt.setString(1, newPassword);
@@ -296,7 +321,8 @@ public class Main {
         }
     }
 
-    public static void deleteAccount(String jdbcUrl, String dbUser, String dbPass){
+    // Todo: Kommer antagligen faila på samma sätt som update ovan?
+    public static void deleteAccount(Connection connection) throws SQLException {
        // prompts: user_id; prints confirmation
 
         //Behöver göras om till en int, men metoden parseInt kommer ge fel som i update-metoden?
