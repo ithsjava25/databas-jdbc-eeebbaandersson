@@ -30,10 +30,8 @@ public class Main {
                             "as system properties (-Dkey=value) or environment variables.");
         }
 
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
+        try (Scanner scanner = new Scanner(System.in); Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
                 System.out.println("SUCCESS: Database connection established.");
-
-                Scanner scanner = new Scanner(System.in);
 
             if (!validateUserLogin(connection, scanner)) {
                 System.out.println("Invalid username or password provided. Exiting the application.");
@@ -41,13 +39,11 @@ public class Main {
             }
             runMenuOptions(connection, scanner);
 
-
         } catch (SQLException e) {
             throw new RuntimeException("FAILURE: Database connection not established.");
         }
 
         //Todo: Starting point for your code
-        Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
 
         // Skapar DataSource-objekt
 //        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
@@ -56,29 +52,6 @@ public class Main {
 //        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
 //            sdmds.validateConnection();
 //        }
-
-
-
-//
-//         System.console().readLine();
-
-       // String userInput = IO.readln("Choose your option: ");
-        // Move to switch (1-6+0)
-
-        // 1
-       // listMoonMissions(connection);
-        // 2
-      //  getMoonMissionByID(connection);
-        // 3
-      //  countMoonMissionsByYear(connection);
-        //4
-       // createAccount(connection);
-        // 5
-       // updateAccountPassword(connection);
-        // 6
-       // deleteAccount(connection);
-        // 0
-        // Exits program..
 
     }
 
@@ -197,7 +170,7 @@ public class Main {
         }
     }
 
-    // Todo: Fixa display av alla mission detaljer
+    // Todo: Fixa display av alla mission detaljer!
     private void getMoonMissionByID(Connection connection, Scanner scanner) throws SQLException {
 
         System.out.println("Enter moon mission id: ");
@@ -242,10 +215,7 @@ public class Main {
             System.out.println("Error: Invalid input, please enter a valid number.");
             return;
         }
-
-        String query = "select count(*) as mission_launched " +
-                "from moon_mission " +
-                "where launch_date = ?";
+        String query = "select count(*) as mission_launched from moon_mission where launch_date = ?";
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setInt(1, inputYear);
@@ -299,63 +269,52 @@ public class Main {
 
     private void updateAccountPassword(Connection connection, Scanner scanner) throws SQLException {
         // prompts: user_id, new password; prints confirmation
-        int userId;
-        String userIdInput;
+        System.out.println("To change password please enter your user id: ");
+        int userId = Integer.parseInt(scanner.nextLine());
 
-        while (true) {
-            userIdInput = IO.readln("Enter user ID: ");
-
-            if (userIdInput == null) {
-                System.out.println("Error: Input stream termined unexpectedly. Exiting.");
-                return;
-
-            }
-            if (userIdInput.trim().isEmpty()) {
-                System.out.println("Error: User ID must be provided.");
-                continue;
-            }
-
-            try {
-                userId = Integer.parseInt(userIdInput);
-                break;
-            } catch (NumberFormatException e) {
-                System.out.println("Error: Invalid User ID format. Please enter a number.");
-            }
-        }
-
-        String newPassword = IO.readln("Enter a new password : ");
+        System.out.println("Enter your new password: ");
+        String newPassword = scanner.nextLine();
 
         if  (newPassword == null || newPassword.trim().isEmpty()){
             System.out.println("Error: Password must be provided.");
             return;
         }
-
         String update = "update account set password = ? where user_id = ?";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(update);
-        ) {
-
+        try (PreparedStatement pstmt = connection.prepareStatement(update)) {
             pstmt.setString(1, newPassword);
-            pstmt.setInt(2, userId);
+            pstmt.setInt(2, (userId));
 
             int rowsAffected =  pstmt.executeUpdate();
            if (rowsAffected > 0) {
                System.out.println("Account updated successfully!");
-           } else  {
-               System.out.println("Error: Failed to update account. User ID " + userId + " might not exist.");
            }
+
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error: Failed to update account with password.");
         }
     }
 
     private void deleteAccount(Connection connection, Scanner scanner) throws SQLException {
        // prompts: user_id; prints confirmation
 
-        //Behöver göras om till en int, men metoden parseInt kommer ge fel som i update-metoden?
-        String userId = IO.readln("Enter user ID: ");
+        System.out.println("To delete account please enter your user id: ");
+        int userId = Integer.parseInt(scanner.nextLine());
+
+        //addera validering?
 
         String delete = "delete from account where user_id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(delete)) {
+            pstmt.setInt(1, (userId));
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Account deleted successfully!");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to delete account.");
+        }
     }
  }
 
