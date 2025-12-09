@@ -11,6 +11,14 @@ public class Main {
 
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
+//    private final AccountRepository accountRepository;
+//    private final MoonMissionRepository moonMissionRepository;
+//
+//    public  Main(AccountRepository accountRepository, MoonMissionRepository moonMissionRepository) {
+//        this.accountRepository = accountRepository;
+//        this.moonMissionRepository = moonMissionRepository;
+//    }
+
     static void main(String[] args) throws SQLException {
         if (isDevMode(args)) {
             DevDatabaseInitializer.start();
@@ -33,7 +41,7 @@ public class Main {
         try (Scanner scanner = new Scanner(System.in); Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
                 System.out.println("SUCCESS: Database connection established.");
 
-            if (!validateUserLogin(connection, scanner)) {
+            if (!validateLogin(connection, scanner)) {
                 System.out.println("Invalid username or password provided. Exiting the application.");
                 return;
             }
@@ -45,13 +53,19 @@ public class Main {
 
         //Todo: Starting point for your code
 
-        // Skapar DataSource-objekt
-//        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
-//
-//        // Testar databaanslutningen från SimpleDriverManagerDataSource
-//        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
-//            sdmds.validateConnection();
-//        }
+        // Skapar DataSource
+       DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
+
+        // Testar databaanslutningen
+        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
+            sdmds.validateConnection();
+        }
+
+        // Skapar Repositories
+        AccountRepository accountRepo = new JdbcAccountRepository(dataSource);
+        MoonMissionRepository moonMissionRepo = new JdbcMoonMissionRepository(dataSource);
+
+
 
     }
 
@@ -82,7 +96,34 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
-    private boolean validateUserLogin(Connection connection, Scanner scanner) {
+    private boolean handleUserLogin(Scanner scanner) {
+        System.out.println("To sign in please enter your information below:");
+
+        while (true) {
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+            if (username.equals("0")) {
+                return false;
+            }
+
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
+            if (password.equals("0")) {
+                return false;
+            }
+
+//            if (accounRepository.validateLogin(username, password)) {
+//                System.out.println("Login successful!");
+//                return true;
+//            } else {
+//                System.out.println("Login failed. Try again, or exit by pressing '0'.");
+//
+//            }
+
+        }
+    }
+
+    private boolean validateLogin(Connection connection, Scanner scanner) {
         System.out.println("To sign in please enter your information below:");
 
         boolean isValid = false;
@@ -102,6 +143,7 @@ public class Main {
             String query = "select name, password from account where name = ? and password = ?";
 
             try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+
                 pstmt.setString(1, username);
                 pstmt.setString(2, password);
 
@@ -120,18 +162,20 @@ public class Main {
         return isValid;
     }
 
+    // Behålla kvar här?
     private void displayMenuOptions() {
         System.out.format(
-                "   1| List moon missions (prints spacecraft names from `moon_mission`).\n" +
-                "   2| Get a moon mission by mission_id (prints details for that mission).\n" +
-                "   3| Count missions for a given year (prompts: year; prints the number of missions launched that year).\n" +
-                "   4| Create an account (prompts: first name, last name, ssn, password; prints confirmation).\n" +
-                "   5| Update an account password (prompts: user_id, new password; prints confirmation).\n" +
-                "   6| Delete an account (prompts: user_id; prints confirmation).\n" +
+                "   1| List moon missions. \n" +
+                "   2| Get a moon mission by mission_id. \n" +
+                "   3| Count missions for a given year. \n" +
+                "   4| Create an account. \n" +
+                "   5| Update an account password. \n" +
+                "   6| Delete an account. \n" +
                 "   0| Exit.");
         System.out.println(" ");
     }
 
+    // Behålla kvar här?
     private void runMenuOptions(Connection connection, Scanner scanner) throws SQLException {
 
         System.out.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
@@ -156,7 +200,7 @@ public class Main {
        }
     }
 
-    private void listMoonMissions(Connection connection) throws SQLException {
+    private void listMoonMissions(Connection connection) {
         String query = "select spacecraft from moon_mission";
 
             try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -166,12 +210,12 @@ public class Main {
                     System.out.println("spacecraft: " + spacecraft);
                 }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("No available data found.");
         }
     }
 
     // Todo: Fixa display av alla mission detaljer!
-    private void getMoonMissionByID(Connection connection, Scanner scanner) throws SQLException {
+    private void getMoonMissionByID(Connection connection, Scanner scanner) {
 
         System.out.println("Enter moon mission id: ");
         String inputId = scanner.nextLine().trim();
@@ -200,21 +244,12 @@ public class Main {
     }
 }
 
-    private void countMoonMissionsByYear(Connection connection, Scanner scanner) throws SQLException {
+    private void countMoonMissionsByYear(Connection connection, Scanner scanner) {
 
         System.out.println("Enter a year between 1958-2019 to find out the number of missions launched for that year: ");
         String year = scanner.nextLine().trim();
         int inputYear  = Integer.parseInt(year);
 
-        try {
-            if (inputYear < 1958 || inputYear > 2019) {
-                System.out.println("Error: Year must be between 1958-2019.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Error: Invalid input, please enter a valid number.");
-            return;
-        }
         String query = "select count(*) as mission_launched from moon_mission where launch_date = ?";
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -234,7 +269,7 @@ public class Main {
 
     // För create/update/delete:
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
-    private void createAccount(Connection connection, Scanner scanner) throws SQLException {
+    private void createAccount(Connection connection, Scanner scanner) {
         System.out.println("To create a new account please enter your information below:");
 
         System.out.println("First name: ");
@@ -267,7 +302,7 @@ public class Main {
         }
     }
 
-    private void updateAccountPassword(Connection connection, Scanner scanner) throws SQLException {
+    private void updateAccountPassword(Connection connection, Scanner scanner) {
         // prompts: user_id, new password; prints confirmation
         System.out.println("To change password please enter your user id: ");
         int userId = Integer.parseInt(scanner.nextLine());
@@ -295,7 +330,7 @@ public class Main {
         }
     }
 
-    private void deleteAccount(Connection connection, Scanner scanner) throws SQLException {
+    private void deleteAccount(Connection connection, Scanner scanner) {
        // prompts: user_id; prints confirmation
 
         System.out.println("To delete account please enter your user id: ");
