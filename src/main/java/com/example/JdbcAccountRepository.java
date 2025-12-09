@@ -35,7 +35,7 @@ public class JdbcAccountRepository implements AccountRepository {
 
     // Todo: Flytta output till main, får inte vara med här!
     @Override
-    public void createAccount(String firstName, String lastName, String ssn , String password) {
+    public int createAccount(String firstName, String lastName, String ssn , String password) {
         String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
 
         try (Connection connection = dataSource.getConnection();
@@ -82,7 +82,7 @@ public class JdbcAccountRepository implements AccountRepository {
 
     // Todo: Flytta output till main, får inte vara med här!
     @Override
-    public void deleteAccount(int  userId) {
+    public int deleteAccount(int  userId) {
         String delete = "delete from account where user_id = ?";
 
         try (Connection connection = dataSource.getConnection();

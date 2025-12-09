@@ -1,9 +1,14 @@
 package com.example;
 
+import com.example.model.MoonMission;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 public class JdbcMoonMissionRepository implements MoonMissionRepository {
 
@@ -14,72 +19,88 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         this.dataSource = dataSource;
     }
 
-    // Todo: Flytta output till main, får inte vara med här!
     @Override
-    public void listMoonMissions() {
-        String query = "select spacecraft from moon_mission";
+    public List<MoonMission> listMoonMissions() {
+        List<MoonMission> missions = new ArrayList<>();
+
+        String query = "select mission_id, spacecraft, launch_date, carrier_rocket, operator, mission_type, outcome from moon_mission";
 
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement pstmt = connection.prepareStatement(query)) {
-
-            ResultSet result = pstmt.executeQuery();
-            while (result.next()) {
-                String spacecraft = result.getString("spacecraft");
-                System.out.println("spacecraft: " + spacecraft);
+             PreparedStatement pstmt = connection.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()
+        ) {
+            while (rs.next()) {
+                MoonMission mission = new MoonMission(
+                        rs.getInt("missionId"),
+                        rs.getString("spacecraft"),
+                        rs.getString("launchDate"),
+                        rs.getString("carrierRocket"),
+                        rs.getString("operator"),
+                        rs.getString("missionType"),
+                        rs.getString("outcome")
+                );
+                missions.add(mission);
             }
         } catch (SQLException e) {
-            throw new RuntimeException("No available data found.");
+            throw new RuntimeException("Error: Failed to fetch mission data from database", e);
         }
+        return missions;
     }
 
     // Todo: Flytta output till main, får inte vara med här!
     @Override
-    public void getMoonMissionById(String inputId) {
+    public Optional<MoonMission> getMoonMissionById(int id) {
+
         String query = "select * from moon_mission where mission_id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement pstmt = connection.prepareStatement(query)) {
 
-            pstmt.setString(1, inputId);
-            ResultSet result = pstmt.executeQuery();
+            pstmt.setInt(1, id);
 
-            while (result.next()) {
-                int missionId = result.getInt("mission_id");
-                String spacecraft = result.getString("spacecraft");
-                java.util.Date date = result.getDate("launch_date");
-                String carrierRocket = result.getString("carrier_rocket");
-                String missionType = result.getString("mission_type");
-                String outcome = result.getString("outcome");
-
-                System.out.println("mission_id: " + missionId + " spacecraft: " + spacecraft);
+            try (ResultSet rs = pstmt.executeQuery()){
+                if(rs.next()) {
+                    MoonMission mission = new MoonMission(
+                            rs.getInt("missionId"),
+                            rs.getString("spacecraft"),
+                            rs.getString("launchDate"),
+                            rs.getString("carrierRocket"),
+                            rs.getString("operator"),
+                            rs.getString("missionType"),
+                            rs.getString("outcome")
+                    );
+                    return Optional.of(mission);
+                } else {
+                    return Optional.empty();
+                }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error: Failed to fetch mission data from database", e);
         }
     }
 
     // Todo: Flytta output till main, får inte vara med här!
     @Override
-    public void countMoonMissionByYear(String inputYear) {
+    public int countMoonMissionByYear(int  year) {
+
         String query = "select count(*) as mission_launched from moon_mission where launch_date = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement pstmt = connection.prepareStatement(query)) {
 
-            pstmt.setInt(1, Integer.parseInt(inputYear));
-            ResultSet result = pstmt.executeQuery();
+            pstmt.setInt(1, year);
 
-            if (result.next()) {
-                int count = result.getInt("mission_launched");
-                System.out.println("Year: " + inputYear + " missions_launched: " + count);
+            try (ResultSet rs = pstmt.executeQuery()){
+                if (rs.next()) {
+                    return rs.getInt("mission_count");
+                }
+                return 0;
             }
-
         } catch (SQLException e) {
-            throw new RuntimeException("No data from selected year was found.");
+            throw new RuntimeException("Database error counting missions for year" + year, e);
 
         }
 
     }
-
 
 }

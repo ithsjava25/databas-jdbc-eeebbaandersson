@@ -1,72 +1,59 @@
 package com.example;
 
+import com.example.model.MoonMission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.sql.*;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 
 public class Main {
 
+    private AccountRepository accountRepository;
+    private MoonMissionRepository moonMissionRepository;
+
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-//    private final AccountRepository accountRepository;
-//    private final MoonMissionRepository moonMissionRepository;
-//
-//    public  Main(AccountRepository accountRepository, MoonMissionRepository moonMissionRepository) {
-//        this.accountRepository = accountRepository;
-//        this.moonMissionRepository = moonMissionRepository;
-//    }
-
-    static void main(String[] args) throws SQLException {
+    public void main(String[] args) throws SQLException {
         if (isDevMode(args)) {
             DevDatabaseInitializer.start();
         }
         new Main().run();
     }
 
-    public void run() throws SQLException {
+    public void run() {
         // Resolve DB settings with precedence: System properties -> Environment variables
         String jdbcUrl = resolveConfig("APP_JDBC_URL", "APP_JDBC_URL");
         String dbUser = resolveConfig("APP_DB_USER", "APP_DB_USER");
         String dbPass = resolveConfig("APP_DB_PASS", "APP_DB_PASS");
 
-        if (jdbcUrl == null || dbUser == null || dbPass == null) {
-            throw  new IllegalArgumentException(
-                    "Missing DB configuration. Provide APP_JDBC_URL, APP_DB_USER, APP_DB_PASS " +
-                            "as system properties (-Dkey=value) or environment variables.");
-        }
-
-        try (Scanner scanner = new Scanner(System.in); Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPass)) {
-                System.out.println("SUCCESS: Database connection established.");
-
-            if (!validateLogin(connection, scanner)) {
-                System.out.println("Invalid username or password provided. Exiting the application.");
-                return;
-            }
-            runMenuOptions(connection, scanner);
-
-        } catch (SQLException e) {
-            throw new RuntimeException("FAILURE: Database connection not established.");
-        }
 
         //Todo: Starting point for your code
 
         // Skapar DataSource
        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
+        this.accountRepository = new JdbcAccountRepository(dataSource);
+        this.moonMissionRepository = new JdbcMoonMissionRepository(dataSource);
 
-        // Testar databaanslutningen
-        if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
-            sdmds.validateConnection();
+
+
+        try (Scanner scanner = new Scanner(System.in)) {
+            try (Connection connection = dataSource.getConnection()) {
+                System.out.println("SUCCESS: Database connection established.");
+
+            }
+
+            if (!handleUserLogin(scanner)) {
+                System.out.println("Invalid username or password provided. Exiting the application.");
+                return;
+            }
+            runMenuOptions(accountRepository, moonMissionRepository, scanner);
+
+        } catch (SQLException e) {
+            throw new RuntimeException("FAILURE: Database connection not established.");
         }
-
-        // Skapar Repositories
-        AccountRepository accountRepo = new JdbcAccountRepository(dataSource);
-        MoonMissionRepository moonMissionRepo = new JdbcMoonMissionRepository(dataSource);
-
-
-
     }
 
     /**
@@ -112,57 +99,17 @@ public class Main {
                 return false;
             }
 
-//            if (accounRepository.validateLogin(username, password)) {
-//                System.out.println("Login successful!");
-//                return true;
-//            } else {
-//                System.out.println("Login failed. Try again, or exit by pressing '0'.");
-//
-//            }
+            if (accountRepository.validateLogin(username, password)) {
+                System.out.println("Login successful!");
+                return true;
+            } else {
+                System.out.println("Login failed. Try again, or exit by pressing '0'.");
+
+            }
 
         }
     }
 
-    private boolean validateLogin(Connection connection, Scanner scanner) {
-        System.out.println("To sign in please enter your information below:");
-
-        boolean isValid = false;
-
-        while (!isValid) {
-            System.out.print("Username: ");
-            String username = scanner.nextLine().trim();
-            if (username.equals("0")) {
-                return false;
-            }
-
-            System.out.print("Password: ");
-            String password = scanner.nextLine().trim();
-            if (password.equals("0")) {
-                return false;
-            }
-            String query = "select name, password from account where name = ? and password = ?";
-
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-
-                pstmt.setString(1, username);
-                pstmt.setString(2, password);
-
-                try (ResultSet result = pstmt.executeQuery()) {
-                    if (result.next()) {
-                        System.out.println("Login successful!");
-                        return true;
-                    } else {
-                        System.out.println("Login failed. Try again, or exit by pressing '0'.");
-                    }
-                }
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return isValid;
-    }
-
-    // Behålla kvar här?
     private void displayMenuOptions() {
         System.out.format(
                 "   1| List moon missions. \n" +
@@ -176,100 +123,92 @@ public class Main {
     }
 
     // Behålla kvar här?
-    private void runMenuOptions(Connection connection, Scanner scanner) throws SQLException {
+    private void runMenuOptions(AccountRepository accountRepository, MoonMissionRepository moonMissionRepository, Scanner scanner) {
 
         System.out.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
-       displayMenuOptions();
+        displayMenuOptions();
 
        while (true) {
            System.out.println("Enter your choice: ");
            String inputChoice = scanner.nextLine();
-           switch (inputChoice) {
-               case "1" -> listMoonMissions(connection);
-               case "2" -> getMoonMissionByID(connection, scanner);
-               case "3" ->  countMoonMissionsByYear(connection, scanner);
-               case "4" -> createAccount(connection, scanner);
-               case "5" -> updateAccountPassword(connection, scanner);
-               case "6" -> deleteAccount(connection, scanner);
-               case "0" -> {
-                   System.out.println("Exiting the application.");
-                   return;
+
+           try {
+               switch (inputChoice) {
+                   case "1" -> listMoonMissions();
+                   case "2" -> getMoonMissionByID(scanner);
+                   case "3" -> countMoonMissionsByYear(moonMissionRepository,scanner);
+                   case "4" -> createAccount(accountRepository,scanner);
+                   case "5" -> updateAccountPassword(accountRepository, scanner);
+                   case "6" -> deleteAccount(accountRepository, scanner);
+                   case "0" -> {
+                       System.out.println("Exiting the application.");
+                       return;
+                   }
+                   default -> System.out.println("Invalid choice. Try again.");
                }
-               default -> System.out.println("Invalid choice. Try again.");
+           } catch (RuntimeException e) {
+               throw new RuntimeException("Error while running application", e);
            }
+
+
        }
     }
 
-    private void listMoonMissions(Connection connection) {
-        String query = "select spacecraft from moon_mission";
+    private void listMoonMissions() {
+        List<MoonMission> missions = moonMissionRepository.listMoonMissions();
 
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            ResultSet result = pstmt.executeQuery();
-                while (result.next()) {
-                    String spacecraft = result.getString("spacecraft");
-                    System.out.println("spacecraft: " + spacecraft);
-                }
-        } catch (SQLException e) {
-            throw new RuntimeException("No available data found.");
+        if(missions.isEmpty()) {
+            System.out.println("No moon missions found!");
+        } else {
+            System.out.println("--MOON MISSION DETAILS--");
+            missions.forEach(System.out::println);
+
         }
     }
 
-    // Todo: Fixa display av alla mission detaljer!
-    private void getMoonMissionByID(Connection connection, Scanner scanner) {
 
+    private void getMoonMissionByID(Scanner scanner) {
         System.out.println("Enter moon mission id: ");
         String inputId = scanner.nextLine().trim();
 
-        String query = "select * from moon_mission where mission_id = ?";
+        try {
+            int id = Integer.parseInt(inputId);
 
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, inputId);
-            ResultSet result = pstmt.executeQuery();
+            Optional<MoonMission> mission = moonMissionRepository.getMoonMissionById(id);
 
-                while (result.next()) {
-                    int missionId = result.getInt("mission_id");
-                    String spacecraft = result.getString("spacecraft");
-                    java.util.Date date = result.getDate("launch_date");
-                    String carrierRocket = result.getString("carrier_rocket");
-                    String missionType = result.getString("mission_type");
-                    String outcome = result.getString("outcome");
-
-                    System.out.println("mission_id: " + missionId + " spacecraft: " + spacecraft);
-                }
-
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-
+            if (mission.isPresent()) {
+                System.out.println("Moon mission found!");
+                System.out.println(mission.get());
+            } else {
+                System.out.println("No mission found with id: " + inputId);
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Try again.");
+        }
     }
-}
 
-    private void countMoonMissionsByYear(Connection connection, Scanner scanner) {
 
-        System.out.println("Enter a year between 1958-2019 to find out the number of missions launched for that year: ");
-        String year = scanner.nextLine().trim();
-        int inputYear  = Integer.parseInt(year);
+    private void countMoonMissionsByYear(MoonMissionRepository moonMissionRepository, Scanner scanner) {
+        System.out.println("Enter a year to find out number of missions launched: ");
+        String inputYear = scanner.nextLine().trim();
 
-        String query = "select count(*) as mission_launched from moon_mission where launch_date = ?";
+        try {
+            int  year = Integer.parseInt(inputYear);
+            int count = moonMissionRepository.countMoonMissionByYear(year);
 
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setInt(1, inputYear);
-            ResultSet result = pstmt.executeQuery();
-
-                if (result.next()) {
-                    int count = result.getInt("mission_launched");
-                    System.out.println("Year: " + inputYear + " missions_launched: " + count);
-                }
-
-        } catch (SQLException e) {
-            throw new RuntimeException("No data from selceted year was found.");
-
+            if (count > 0){
+                System.out.println("Number of moon missions found for year " + year +": "+ count + ".");
+            } else {
+                System.out.println("No missions found for year " + year + ".");
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input.");
         }
     }
 
     // För create/update/delete:
     // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
-    private void createAccount(Connection connection, Scanner scanner) {
+    private void createAccount(AccountRepository accountRepository, Scanner scanner) {
         System.out.println("To create a new account please enter your information below:");
 
         System.out.println("First name: ");
@@ -302,7 +241,7 @@ public class Main {
         }
     }
 
-    private void updateAccountPassword(Connection connection, Scanner scanner) {
+    private void updateAccountPassword(AccountRepository accountRepository, Scanner scanner) {
         // prompts: user_id, new password; prints confirmation
         System.out.println("To change password please enter your user id: ");
         int userId = Integer.parseInt(scanner.nextLine());
@@ -330,7 +269,7 @@ public class Main {
         }
     }
 
-    private void deleteAccount(Connection connection, Scanner scanner) {
+    private void deleteAccount(AccountRepository accountRepository, Scanner scanner) {
        // prompts: user_id; prints confirmation
 
         System.out.println("To delete account please enter your user id: ");
@@ -351,7 +290,11 @@ public class Main {
             throw new RuntimeException("Failed to delete account.");
         }
     }
+
  }
+
+
+
 
 
 

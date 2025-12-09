@@ -26,16 +26,4 @@ public class SimpleDriverManagerDataSource implements DataSource{
         return DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
     }
 
-    public void validateConnection(){
-        try (Connection connection = getConnection()){
-            if (connection != null){
-                System.out.println("SUCCESS: Database connection established.");
-            }
-
-        } catch (SQLException e){
-            throw new RuntimeException("FAILURE: Database connection not established.");
-
-        }
-    }
-
 }
