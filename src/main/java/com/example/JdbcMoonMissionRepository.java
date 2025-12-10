@@ -47,7 +47,7 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         return missions;
     }
 
-    // Todo: Flytta output till main, får inte vara med här!
+
     @Override
     public Optional<MoonMission> getMoonMissionById(int id) {
 
@@ -79,11 +79,10 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         }
     }
 
-    // Todo: Flytta output till main, får inte vara med här!
     @Override
     public int countMoonMissionByYear(int  year) {
 
-        String query = "select count(*) as mission_launched from moon_mission where launch_date = ?";
+        String query = "select count(*) as mission_launched from moon_mission where year(launch_date) = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -102,5 +101,7 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         }
 
     }
+
+
 
 }

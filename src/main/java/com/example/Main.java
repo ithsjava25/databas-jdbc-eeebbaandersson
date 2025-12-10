@@ -111,7 +111,7 @@ public class Main {
                 System.out.println("Login successful!");
                 return true;
             } else {
-                System.out.println("Login failed. Try again, or exit by pressing '0'.");
+                System.out.println("Login failed. Please try again or exit by pressing '0'.");
 
             }
 
@@ -142,7 +142,7 @@ public class Main {
            try {
                switch (inputChoice) {
                    case "1" -> listMoonMissions();
-                   case "2" -> getMoonMissionByID(scanner);
+                   case "2" -> getMoonMissionById(scanner);
                    case "3" -> countMoonMissionsByYear(scanner);
                    case "4" -> createAccount(scanner);
                    case "5" -> updateAccountPassword(scanner);
@@ -156,24 +156,34 @@ public class Main {
            } catch (RuntimeException e) {
                throw new RuntimeException("Error while running application", e);
            }
-
-
        }
     }
 
+    private void displayMissionDetails(MoonMission mission) {
+        System.out.println("--MOON MISSION DETAILS--");
+        System.out.println("Mission ID: " + mission.missionId());
+        System.out.println("Spacecraft: " + mission.spacecraft());
+        System.out.println("Launch date: " + mission.launchDate());
+        System.out.println("Carrier rocket: " + mission.carrierRocket());
+        System.out.println("Operator: " + mission.operator());
+        System.out.println("Mission type: " + mission.missionType());
+        System.out.println("Outcome: " + mission.outcome());
+    }
+
+    //Todo: Få till en snyggare utskrift!
     private void listMoonMissions() {
         List<MoonMission> missions = moonMissionRepository.listMoonMissions();
 
         if(missions.isEmpty()) {
             System.out.println("No moon missions found!");
         } else {
-            System.out.println("--MOON MISSION DETAILS--");
             missions.forEach(System.out::println);
 
         }
     }
 
-    private void getMoonMissionByID(Scanner scanner) {
+    //Todo: Få till en snyggare utskrift!
+    private void getMoonMissionById(Scanner scanner) {
         System.out.println("Enter moon mission id: ");
         String inputId = scanner.nextLine().trim();
 
@@ -183,8 +193,7 @@ public class Main {
             Optional<MoonMission> mission = moonMissionRepository.getMoonMissionById(id);
 
             if (mission.isPresent()) {
-                System.out.println("Moon mission found!");
-                System.out.println(mission.get());
+                displayMissionDetails(mission.get());
             } else {
                 System.out.println("No mission found with id: " + inputId);
             }
