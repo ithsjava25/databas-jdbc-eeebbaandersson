@@ -31,12 +31,12 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         ) {
             while (rs.next()) {
                 MoonMission mission = new MoonMission(
-                        rs.getInt("missionId"),
+                        rs.getInt("mission_Id"),
                         rs.getString("spacecraft"),
-                        rs.getString("launchDate"),
-                        rs.getString("carrierRocket"),
+                        rs.getString("launch_date"),
+                        rs.getString("carrier_rocket"),
                         rs.getString("operator"),
-                        rs.getString("missionType"),
+                        rs.getString("mission_type"),
                         rs.getString("outcome")
                 );
                 missions.add(mission);
@@ -61,12 +61,12 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
             try (ResultSet rs = pstmt.executeQuery()){
                 if(rs.next()) {
                     MoonMission mission = new MoonMission(
-                            rs.getInt("missionId"),
+                            rs.getInt("mission_Id"),
                             rs.getString("spacecraft"),
-                            rs.getString("launchDate"),
-                            rs.getString("carrierRocket"),
+                            rs.getString("launch_date"),
+                            rs.getString("carrier_rocket"),
                             rs.getString("operator"),
-                            rs.getString("missionType"),
+                            rs.getString("mission_type"),
                             rs.getString("outcome")
                     );
                     return Optional.of(mission);
@@ -92,7 +92,7 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
 
             try (ResultSet rs = pstmt.executeQuery()){
                 if (rs.next()) {
-                    return rs.getInt("mission_count");
+                    return rs.getInt("mission_launched");
                 }
                 return 0;
             }

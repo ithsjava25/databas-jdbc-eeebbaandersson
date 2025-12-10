@@ -10,20 +10,23 @@ public class SimpleDriverManagerDataSource implements DataSource{
     private final String dbPass;
 
     public SimpleDriverManagerDataSource(String jdbcUrl, String dbUser, String dbPass) {
-        if (jdbcUrl == null || dbUser == null || dbPass == null) {
-            throw  new IllegalArgumentException(
-                    "Missing DB configuration. Provide APP_JDBC_URL, APP_DB_USER, APP_DB_PASS " +
-                            "as system properties (-Dkey=value) or environment variables.");
-        }
         this.jdbcUrl = jdbcUrl;
         this.dbUser = dbUser;
         this.dbPass = dbPass;
     }
 
-
     @Override
     public Connection getConnection() throws SQLException {
         return DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+    }
+
+    public void validateConnection() throws SQLException {
+        try  (Connection connection = getConnection()) {
+
+        }
+        catch (SQLException e) {
+            System.out.println("SQLException: " + e.getMessage());
+        }
     }
 
 }

@@ -29,13 +29,14 @@ public class JdbcAccountRepository implements AccountRepository {
                 return resultSet.next();
             }
         } catch (SQLException e){
-            throw new RuntimeException("Error: failed to validate user login");
+            throw new RuntimeException("Error: failed to validate user login",e);
         }
     }
 
-    // Todo: Flytta output till main, får inte vara med här!
+
     @Override
     public int createAccount(String firstName, String lastName, String ssn , String password) {
+
         String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
 
         try (Connection connection = dataSource.getConnection();
@@ -46,21 +47,17 @@ public class JdbcAccountRepository implements AccountRepository {
             pstmt.setString(3, ssn);
             pstmt.setString(4, password);
 
-            int rowsAffected =  pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("Account created successfully!");
-            } else  {
-                System.out.println("Error: Failed to create account.");
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+            return pstmt.executeUpdate();
 
+        } catch (SQLException e){
+            throw new RuntimeException("Error: Failed to create account",e);
+        }
     }
 
-    // Todo: Flytta output till main, får inte vara med här!
+
     @Override
-    public void updateAccount(String newPassword, int userId) {
+    public boolean updateAccountPassword(String newPassword, int userId) {
+
         String update = "update account set password = ? where user_id = ?";
 
         try (Connection connection = dataSource.getConnection();
@@ -69,37 +66,30 @@ public class JdbcAccountRepository implements AccountRepository {
             pstmt.setString(1, newPassword);
             pstmt.setInt(2, (userId));
 
-            int rowsAffected =  pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("Account updated successfully!");
-            }
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
 
         } catch (SQLException e) {
-            throw new RuntimeException("Error: Failed to update account with password.");
+            throw new RuntimeException("Error: Failed to update account with password.",e);
         }
-
     }
 
-    // Todo: Flytta output till main, får inte vara med här!
+
     @Override
-    public int deleteAccount(int  userId) {
+    public boolean deleteAccount(int  userId) {
+
         String delete = "delete from account where user_id = ?";
 
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement pstmt = connection.prepareStatement(delete)) {
+
             pstmt.setInt(1, (userId));
 
             int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("Account deleted successfully!");
-            }
+            return  rowsAffected > 0;
+
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to delete account.");
+            throw new RuntimeException("Failed to delete account.",e);
         }
-
     }
-
-
-
-
 }

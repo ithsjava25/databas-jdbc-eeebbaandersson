@@ -16,7 +16,7 @@ public class Main {
 
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-    public void main(String[] args) throws SQLException {
+    public static void main(String[] args) {
         if (isDevMode(args)) {
             DevDatabaseInitializer.start();
         }
@@ -29,30 +29,38 @@ public class Main {
         String dbUser = resolveConfig("APP_DB_USER", "APP_DB_USER");
         String dbPass = resolveConfig("APP_DB_PASS", "APP_DB_PASS");
 
-
-        //Todo: Starting point for your code
+        if (jdbcUrl == null || dbUser == null || dbPass == null) {
+            throw  new IllegalArgumentException(
+                    "Missing DB configuration. Provide APP_JDBC_URL, APP_DB_USER, APP_DB_PASS " +
+                            "as system properties (-Dkey=value) or environment variables.");
+        }
 
         // Skapar DataSource
        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
-        this.accountRepository = new JdbcAccountRepository(dataSource);
-        this.moonMissionRepository = new JdbcMoonMissionRepository(dataSource);
 
+        try {
+            if (dataSource instanceof SimpleDriverManagerDataSource sdmds) {
+                sdmds.validateConnection();
+                System.out.println("SUCCESS: Database connection established");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("FAILURE: Database connection not established.", e);
+        }
 
+        accountRepository = new JdbcAccountRepository(dataSource);
+        moonMissionRepository = new JdbcMoonMissionRepository(dataSource);
 
         try (Scanner scanner = new Scanner(System.in)) {
-            try (Connection connection = dataSource.getConnection()) {
-                System.out.println("SUCCESS: Database connection established.");
-
-            }
 
             if (!handleUserLogin(scanner)) {
                 System.out.println("Invalid username or password provided. Exiting the application.");
                 return;
             }
-            runMenuOptions(accountRepository, moonMissionRepository, scanner);
+            runMenuOptions(scanner);
 
-        } catch (SQLException e) {
-            throw new RuntimeException("FAILURE: Database connection not established.");
+        } catch (RuntimeException e) {
+            System.out.println("FAILURE:  " + e.getMessage());
+            throw new RuntimeException("Error while running application", e);
         }
     }
 
@@ -122,8 +130,7 @@ public class Main {
         System.out.println(" ");
     }
 
-    // Behålla kvar här?
-    private void runMenuOptions(AccountRepository accountRepository, MoonMissionRepository moonMissionRepository, Scanner scanner) {
+    private void runMenuOptions(Scanner scanner) {
 
         System.out.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
         displayMenuOptions();
@@ -136,10 +143,10 @@ public class Main {
                switch (inputChoice) {
                    case "1" -> listMoonMissions();
                    case "2" -> getMoonMissionByID(scanner);
-                   case "3" -> countMoonMissionsByYear(moonMissionRepository,scanner);
-                   case "4" -> createAccount(accountRepository,scanner);
-                   case "5" -> updateAccountPassword(accountRepository, scanner);
-                   case "6" -> deleteAccount(accountRepository, scanner);
+                   case "3" -> countMoonMissionsByYear(scanner);
+                   case "4" -> createAccount(scanner);
+                   case "5" -> updateAccountPassword(scanner);
+                   case "6" -> deleteAccount(scanner);
                    case "0" -> {
                        System.out.println("Exiting the application.");
                        return;
@@ -166,7 +173,6 @@ public class Main {
         }
     }
 
-
     private void getMoonMissionByID(Scanner scanner) {
         System.out.println("Enter moon mission id: ");
         String inputId = scanner.nextLine().trim();
@@ -187,13 +193,12 @@ public class Main {
         }
     }
 
-
-    private void countMoonMissionsByYear(MoonMissionRepository moonMissionRepository, Scanner scanner) {
+    private void countMoonMissionsByYear(Scanner scanner) {
         System.out.println("Enter a year to find out number of missions launched: ");
         String inputYear = scanner.nextLine().trim();
 
         try {
-            int  year = Integer.parseInt(inputYear);
+            int year = Integer.parseInt(inputYear);
             int count = moonMissionRepository.countMoonMissionByYear(year);
 
             if (count > 0){
@@ -206,9 +211,8 @@ public class Main {
         }
     }
 
-    // För create/update/delete:
-    // Använd int rowsAffected =  pstmt.executeUpdate() istället för (ResultSet result = pstmt.executeQuery())!
-    private void createAccount(AccountRepository accountRepository, Scanner scanner) {
+    // Todo: Substring för att skapa username som ska in i databasen?
+    private void createAccount(Scanner scanner) {
         System.out.println("To create a new account please enter your information below:");
 
         System.out.println("First name: ");
@@ -220,77 +224,69 @@ public class Main {
         System.out.println("Password: ");
         String password = scanner.nextLine();
 
-        // Insert into account ...
-        String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(insert)) {
-            pstmt.setString(1, firstName);
-            pstmt.setString(2, lastName);
-            pstmt.setString(3, ssn);
-            pstmt.setString(4, password);
-
-           int rowsAffected =  pstmt.executeUpdate();
-           if (rowsAffected > 0) {
-               System.out.println("Account created successfully!");
-           } else  {
-               System.out.println("Error: Failed to create account.");
-           }
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        if (firstName.isEmpty() || lastName.isEmpty() || ssn.isEmpty() || password.isEmpty()) {
+            System.out.println("Invalid input. Try again.");
+            return;
         }
+
+       int rowsAffected = accountRepository.createAccount(firstName, lastName, ssn, password);
+
+       if (rowsAffected > 0) {
+           System.out.println("Account created successfully!");
+       } else {
+           System.out.println("Failed to create account.");
+       }
     }
 
-    private void updateAccountPassword(AccountRepository accountRepository, Scanner scanner) {
+    private void updateAccountPassword(Scanner scanner) {
         // prompts: user_id, new password; prints confirmation
         System.out.println("To change password please enter your user id: ");
-        int userId = Integer.parseInt(scanner.nextLine());
+        String inputId = scanner.nextLine().trim();
 
         System.out.println("Enter your new password: ");
-        String newPassword = scanner.nextLine();
+        String newPassword = scanner.nextLine().trim();
 
-        if  (newPassword == null || newPassword.trim().isEmpty()){
+        if (newPassword.isEmpty()) {
             System.out.println("Error: Password must be provided.");
             return;
         }
-        String update = "update account set password = ? where user_id = ?";
+        try {
+            int userId = Integer.parseInt(inputId);
+            boolean success = accountRepository.updateAccountPassword(newPassword, userId);
 
-        try (PreparedStatement pstmt = connection.prepareStatement(update)) {
-            pstmt.setString(1, newPassword);
-            pstmt.setInt(2, (userId));
-
-            int rowsAffected =  pstmt.executeUpdate();
-           if (rowsAffected > 0) {
-               System.out.println("Account updated successfully!");
-           }
-
-        } catch (SQLException e) {
-            throw new RuntimeException("Error: Failed to update account with password.");
-        }
-    }
-
-    private void deleteAccount(AccountRepository accountRepository, Scanner scanner) {
-       // prompts: user_id; prints confirmation
-
-        System.out.println("To delete account please enter your user id: ");
-        int userId = Integer.parseInt(scanner.nextLine());
-
-        //addera validering?
-
-        String delete = "delete from account where user_id = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(delete)) {
-            pstmt.setInt(1, (userId));
-
-            int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("Account deleted successfully!");
+            if (success) {
+                System.out.println("Account updated successfully!");
+            } else {
+                System.out.println("Failed to update account.");
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to delete account.");
+        } catch (NumberFormatException e) {
+            System.out.println("Error: User id must be a whole number.");
+        } catch (RuntimeException e) {
+            System.out.println("Error while updating account with id " + inputId + ": " + e.getMessage());
         }
     }
 
+    private void deleteAccount(Scanner scanner) {
+       // prompts: user_id; prints confirmation
+        System.out.println("To delete account please enter your user id: ");
+        String inputId = scanner.nextLine().trim();
+
+        try {
+            int userId = Integer.parseInt(inputId);
+            boolean success = accountRepository.deleteAccount(userId);
+
+            if (success) {
+                System.out.println("Account deleted successfully!");
+            } else  {
+                System.out.println("Failed to delete account.");
+            }
+
+        } catch (NumberFormatException e) {
+            System.out.println("Error: User id must be a whole number.");
+        } catch (RuntimeException e) {
+            System.out.println("Error while deleting account with id " + inputId + ": " + e.getMessage());
+        }
+    }
  }
 
 
