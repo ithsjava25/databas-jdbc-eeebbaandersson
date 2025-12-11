@@ -1,6 +1,7 @@
 package com.example;
 
-import com.example.model.MoonMission;
+import com.example.repository.MoonMission;
+import com.example.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.sql.*;
@@ -59,7 +60,7 @@ public class Main {
             runMenuOptions(scanner);
 
         } catch (RuntimeException e) {
-            System.out.println("FAILURE:  " + e.getMessage());
+            System.out.println("FAILURE: " + e.getMessage());
             throw new RuntimeException("Error while running application", e);
         }
     }
@@ -112,9 +113,7 @@ public class Main {
                 return true;
             } else {
                 System.out.println("Login failed. Please try again or exit by pressing '0'.");
-
             }
-
         }
     }
 
@@ -154,7 +153,7 @@ public class Main {
                    default -> System.out.println("Invalid choice. Try again.");
                }
            } catch (RuntimeException e) {
-               throw new RuntimeException("Error while running application", e);
+               System.out.println("Error: " + e.getMessage());
            }
        }
     }
@@ -170,19 +169,17 @@ public class Main {
         System.out.println("Outcome: " + mission.outcome());
     }
 
-    //Todo: Få till en snyggare utskrift!
     private void listMoonMissions() {
-        List<MoonMission> missions = moonMissionRepository.listMoonMissions();
+        List<String> spacecrafts = moonMissionRepository.listMoonMissions();
 
-        if(missions.isEmpty()) {
+        if(spacecrafts.isEmpty()) {
             System.out.println("No moon missions found!");
         } else {
-            missions.forEach(System.out::println);
-
+            System.out.println("Moon missions:");
+            spacecrafts.forEach(System.out::println);
         }
     }
 
-    //Todo: Få till en snyggare utskrift!
     private void getMoonMissionById(Scanner scanner) {
         System.out.println("Enter moon mission id: ");
         String inputId = scanner.nextLine().trim();
@@ -219,19 +216,18 @@ public class Main {
             System.out.println("Invalid input.");
         }
     }
-
-    // Todo: Substring för att skapa username som ska in i databasen?
+    
     private void createAccount(Scanner scanner) {
         System.out.println("To create a new account please enter your information below:");
 
         System.out.println("First name: ");
-        String firstName = scanner.nextLine();
+        String firstName = scanner.nextLine().trim();
         System.out.println("Last name: ");
-        String lastName = scanner.nextLine();
-        System.out.println("Social Security Number (SSN): ");
+        String lastName = scanner.nextLine().trim();
+        System.out.println("Social Security Number (10 digits xxxxxx-xxxx): ");
         String ssn = scanner.nextLine();
         System.out.println("Password: ");
-        String password = scanner.nextLine();
+        String password = scanner.nextLine().trim();
 
         if (firstName.isEmpty() || lastName.isEmpty() || ssn.isEmpty() || password.isEmpty()) {
             System.out.println("Invalid input. Try again.");
@@ -259,6 +255,12 @@ public class Main {
             System.out.println("Error: Password must be provided.");
             return;
         }
+
+        if (newPassword.length() < 6) {
+            System.out.println("Password must be at least 6 characters long.");
+            return;
+        }
+
         try {
             int userId = Integer.parseInt(inputId);
             boolean success = accountRepository.updateAccountPassword(newPassword, userId);
@@ -266,7 +268,7 @@ public class Main {
             if (success) {
                 System.out.println("Account updated successfully!");
             } else {
-                System.out.println("Failed to update account.");
+                System.out.println("Failed to update account password.");
             }
         } catch (NumberFormatException e) {
             System.out.println("Error: User id must be a whole number.");
@@ -287,7 +289,7 @@ public class Main {
             if (success) {
                 System.out.println("Account deleted successfully!");
             } else  {
-                System.out.println("Failed to delete account.");
+                System.out.println("Failed to delete account with id:"+ inputId);
             }
 
         } catch (NumberFormatException e) {

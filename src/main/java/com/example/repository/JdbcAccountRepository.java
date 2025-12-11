@@ -1,4 +1,4 @@
-package com.example;
+package com.example.repository;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -7,7 +7,6 @@ import java.sql.SQLException;
 
 public class JdbcAccountRepository implements AccountRepository {
 
-    // Tar emot DataSource-objekt via konstruktorn
     private final DataSource dataSource;
 
     public JdbcAccountRepository(DataSource dataSource) {

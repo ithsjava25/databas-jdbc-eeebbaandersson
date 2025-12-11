@@ -1,10 +1,10 @@
-package com.example;
+package com.example.repository;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public class SimpleDriverManagerDataSource implements DataSource{
+public class SimpleDriverManagerDataSource implements DataSource {
     private final String jdbcUrl;
     private final String dbUser;
     private final String dbPass;
@@ -21,11 +21,12 @@ public class SimpleDriverManagerDataSource implements DataSource{
     }
 
     public void validateConnection() throws SQLException {
-        try  (Connection connection = getConnection()) {
-
+        try (Connection connection = getConnection()) {
+            // Connection successful
         }
         catch (SQLException e) {
             System.out.println("SQLException: " + e.getMessage());
+            throw e;
         }
     }
 
