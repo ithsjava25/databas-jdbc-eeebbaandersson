@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Optional;
 
 public class JdbcAccountRepository implements AccountRepository {
 
@@ -14,9 +15,9 @@ public class JdbcAccountRepository implements AccountRepository {
     }
 
     @Override
-    public boolean validateLogin(String username, String password) {
+    public Optional<Integer> validateLogin(String username, String password) {
 
-        String query = "select name, password from account where name = ? and password = ?";
+        String query = "select user_id from account where name = ? and password = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -24,17 +25,20 @@ public class JdbcAccountRepository implements AccountRepository {
             pstmt.setString(1,username);
             pstmt.setString(2, password);
 
-            try (ResultSet resultSet = pstmt.executeQuery()){
-                return resultSet.next();
+            try (ResultSet rs = pstmt.executeQuery()){
+                if (rs.next()){
+                    return Optional.of(rs.getInt("user_id"));
+                }
+                return Optional.empty();
             }
         } catch (SQLException e){
-            throw new RuntimeException("Error: failed to validate user login",e);
+            throw new RuntimeException("Database error during login validation",e);
         }
     }
 
 
     @Override
-    public int createAccount(String firstName, String lastName, String ssn , String password) {
+    public int createAccount(String firstName, String lastName, String ssn, String password) {
 
         String insert = "Insert into account (first_name, last_name, ssn, password) values (?, ?, ?, ?)";
 
@@ -72,7 +76,6 @@ public class JdbcAccountRepository implements AccountRepository {
             throw new RuntimeException("Error: Failed to update account with password.",e);
         }
     }
-
 
     @Override
     public boolean deleteAccount(int  userId) {

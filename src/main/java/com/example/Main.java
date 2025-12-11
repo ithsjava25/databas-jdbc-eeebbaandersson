@@ -15,6 +15,10 @@ public class Main {
     private AccountRepository accountRepository;
     private MoonMissionRepository moonMissionRepository;
 
+
+    private Integer loggedInUserId;
+
+
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
@@ -108,7 +112,10 @@ public class Main {
                 return false;
             }
 
-            if (accountRepository.validateLogin(username, password)) {
+            Optional<Integer> userIdOptional = accountRepository.validateLogin(username, password);
+
+            if (userIdOptional.isPresent()) {
+                this.loggedInUserId = userIdOptional.get();
                 System.out.println("Login successful!");
                 return true;
             } else {
@@ -216,8 +223,9 @@ public class Main {
             System.out.println("Invalid input.");
         }
     }
-    
+
     private void createAccount(Scanner scanner) {
+
         System.out.println("To create a new account please enter your information below:");
 
         System.out.println("First name: ");
@@ -229,22 +237,44 @@ public class Main {
         System.out.println("Password: ");
         String password = scanner.nextLine().trim();
 
+        boolean isValid = true;
+
         if (firstName.isEmpty() || lastName.isEmpty() || ssn.isEmpty() || password.isEmpty()) {
-            System.out.println("Invalid input. Try again.");
-            return;
+            System.out.println("Error: Input fields can not be empty.");
+            isValid = false;
         }
 
-       int rowsAffected = accountRepository.createAccount(firstName, lastName, ssn, password);
+        if (isValid && !ssn.matches("\\d{6}-\\d{4}")) {
+            System.out.println("Error: Invalid Social Security Number. Use format XXXX-XXXXX.");
+            isValid = false;
+        }
 
-       if (rowsAffected > 0) {
-           System.out.println("Account created successfully!");
-       } else {
-           System.out.println("Failed to create account.");
-       }
+        if (isValid && password.length() < 6) {
+            System.out.println("Error: Password must be at least 6 characters long.");
+            isValid = false;
+        }
+
+        if (isValid) {
+            try {
+                int rowsAffected = accountRepository.createAccount(firstName, lastName, ssn, password);
+                if (rowsAffected > 0) {
+                    System.out.println("Account created successfully!");
+                } else {
+                    System.out.println("Failed to create account.");
+                }
+            } catch (RuntimeException e) {
+                System.out.println("Error while creating account: " + e.getMessage());
+            }
+        }
     }
 
     private void updateAccountPassword(Scanner scanner) {
-        // prompts: user_id, new password; prints confirmation
+//        // prompts: user_id, new password; prints confirmation
+        if (this.loggedInUserId == null) {
+            System.out.println("Error you must be logged in to update your password.");
+            return;
+        }
+
         System.out.println("To change password please enter your user id: ");
         String inputId = scanner.nextLine().trim();
 
@@ -268,17 +298,21 @@ public class Main {
             if (success) {
                 System.out.println("Account updated successfully!");
             } else {
-                System.out.println("Failed to update account password.");
+                System.out.println("Failed to update account.");
             }
         } catch (NumberFormatException e) {
-            System.out.println("Error: User id must be a whole number.");
-        } catch (RuntimeException e) {
-            System.out.println("Error while updating account with id " + inputId + ": " + e.getMessage());
+            System.out.println("Error: Invalid input. User id must be a whole number.");
+
         }
     }
 
     private void deleteAccount(Scanner scanner) {
        // prompts: user_id; prints confirmation
+        if (this.loggedInUserId == null) {
+            System.out.println("Error you must be logged in to delete your account.");
+            return;
+        }
+
         System.out.println("To delete account please enter your user id: ");
         String inputId = scanner.nextLine().trim();
 
@@ -288,14 +322,15 @@ public class Main {
 
             if (success) {
                 System.out.println("Account deleted successfully!");
+                this.loggedInUserId = null;
             } else  {
-                System.out.println("Failed to delete account with id:"+ inputId);
+                System.out.println("Failed to delete account with id.");
             }
 
         } catch (NumberFormatException e) {
             System.out.println("Error: User id must be a whole number.");
         } catch (RuntimeException e) {
-            System.out.println("Error while deleting account with id " + inputId + ": " + e.getMessage());
+            System.out.println("Error while deleting account" + e.getMessage());
         }
     }
  }

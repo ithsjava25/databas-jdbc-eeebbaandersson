@@ -50,7 +50,8 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
                     MoonMission mission = new MoonMission(
                             rs.getInt("mission_id"),
                             rs.getString("spacecraft"),
-                            rs.getDate("launch_date").toLocalDate(),
+                            rs.getDate("launch_date") != null
+                                    ? rs.getDate("launch_date").toLocalDate() : null,
                             rs.getString("carrier_rocket"),
                             rs.getString("operator"),
                             rs.getString("mission_type"),
