@@ -12,10 +12,21 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
 
     private final DataSource dataSource;
 
+    /**
+     * Creates a JdbcMoonMissionRepository backed by the given DataSource.
+     *
+     * The provided DataSource is used to obtain database connections for repository operations.
+     */
     public JdbcMoonMissionRepository(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
+    /**
+     * Retrieve the spacecraft names from the moon_mission table.
+     *
+     * @return a list of spacecraft names from the moon_mission table; empty if no records are found
+     * @throws RuntimeException if a database error occurs while fetching mission data
+     */
     @Override
     public List<String> listMoonMissions() {
         List<String> spacecrafts = new ArrayList<>();
@@ -35,6 +46,16 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         }
     }
 
+    /**
+     * Retrieve a moon mission by its mission identifier.
+     *
+     * The returned MoonMission will contain database column values for the matching record;
+     * the launch date is set to null if the stored launch_date is null.
+     *
+     * @param id the mission_id of the moon mission to fetch
+     * @return an Optional containing the matching MoonMission, or Optional.empty() if no record exists
+     * @throws RuntimeException if a database error occurs while fetching the mission
+     */
     @Override
     public Optional<MoonMission> getMoonMissionById(int id) {
 
@@ -67,6 +88,13 @@ public class JdbcMoonMissionRepository implements MoonMissionRepository {
         }
     }
 
+    /**
+     * Count moon missions whose launch_date falls in the specified calendar year.
+     *
+     * @param year the calendar year to count missions for
+     * @return the number of missions launched in the specified year
+     * @throws RuntimeException if a database error occurs while performing the query
+     */
     @Override
     public int countMoonMissionByYear(int  year) {
 
