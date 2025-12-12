@@ -15,12 +15,15 @@ public class Main {
     private AccountRepository accountRepository;
     private MoonMissionRepository moonMissionRepository;
 
-
     private Integer loggedInUserId;
-
 
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
+    /**
+     * Application entry point that optionally initializes a development database and starts the main application.
+     *
+     * @param args command-line arguments; include "--dev" to enable development mode (also detected via VM option or DEV_MODE environment variable)
+     */
     public static void main(String[] args) {
         if (isDevMode(args)) {
             DevDatabaseInitializer.start();
@@ -28,6 +31,16 @@ public class Main {
         new Main().run();
     }
 
+    /**
+     * Starts the application's runtime: initializes DB connections and repositories, performs user login, and enters the interactive menu loop.
+     *
+     * <p>The method resolves database configuration (system properties then environment variables), validates the connection,
+     * instantiates repository implementations, prompts for user authentication, and, on successful login, runs the menu-driven interaction
+     * until the user exits.</p>
+     *
+     * @throws IllegalArgumentException if required database configuration (APP_JDBC_URL, APP_DB_USER, APP_DB_PASS) is missing
+     * @throws RuntimeException if the database connection cannot be established or if an unexpected runtime error occurs during execution
+     */
     public void run() {
         // Resolve DB settings with precedence: System properties -> Environment variables
         String jdbcUrl = resolveConfig("APP_JDBC_URL", "APP_JDBC_URL");
@@ -40,7 +53,7 @@ public class Main {
                             "as system properties (-Dkey=value) or environment variables.");
         }
 
-        // Skapar DataSource
+        // Skapar DataSource-object
        DataSource dataSource = new SimpleDriverManagerDataSource(jdbcUrl, dbUser, dbPass);
 
         try {
@@ -96,6 +109,15 @@ public class Main {
         return (v == null || v.trim().isEmpty()) ? null : v.trim();
     }
 
+    /**
+     * Prompts the user to sign in and authenticates credentials from console input.
+     *
+     * Repeatedly requests a username and password from the provided scanner until
+     * authentication succeeds or the user exits by entering "0" for either field.
+     *
+     * @param scanner the Scanner to read user input from (e.g., System.in)
+     * @return `true` if authentication succeeded and the user was logged in, `false` if the user exited the login flow
+     */
     private boolean handleUserLogin(Scanner scanner) {
         System.out.println("To sign in please enter your information below:");
 
@@ -124,6 +146,11 @@ public class Main {
         }
     }
 
+    /**
+     * Prints the interactive menu of available application actions to standard output.
+     *
+     * <p>Menu includes options to list, retrieve, and count moon missions, manage accounts (create, update password, delete), and exit.</p>
+     */
     private void displayMenuOptions() {
         System.out.format(
                 "   1| List moon missions. \n" +
@@ -136,6 +163,15 @@ public class Main {
         System.out.println(" ");
     }
 
+    /**
+     * Display the interactive main menu and process user selections until the user exits.
+     *
+     * <p>Reads choices from the provided Scanner, dispatches the corresponding action for each menu option,
+     * and returns when the user selects the exit option. Runtime exceptions thrown by menu actions are
+     * caught and printed as error messages.</p>
+     *
+     * @param scanner the input Scanner used to read user choices (typically wrapping System.in)
+     */
     private void runMenuOptions(Scanner scanner) {
 
         System.out.println("--WELCOME TO THIS MOON MISSION APPLICATION! 🚀--");
@@ -165,6 +201,11 @@ public class Main {
        }
     }
 
+    /**
+     * Prints detailed fields of a MoonMission.
+     *
+     * @param mission the MoonMission to display; printed fields: missionId, spacecraft, launchDate, carrierRocket, operator, missionType, and outcome
+     */
     private void displayMissionDetails(MoonMission mission) {
         System.out.println("--MOON MISSION DETAILS--");
         System.out.println("Mission ID: " + mission.missionId());
@@ -176,17 +217,29 @@ public class Main {
         System.out.println("Outcome: " + mission.outcome());
     }
 
+    /**
+     * Prints moon mission spacecraft names to standard output; prints "No spacecraft found!" when none are available.
+     */
     private void listMoonMissions() {
         List<String> spacecrafts = moonMissionRepository.listMoonMissions();
 
-        if(spacecrafts.isEmpty()) {
-            System.out.println("No moon missions found!");
+        if (spacecrafts.isEmpty()) {
+            System.out.println("No spacecrafts found!");
         } else {
-            System.out.println("Moon missions:");
+            System.out.println("Spacecraft name:");
             spacecrafts.forEach(System.out::println);
         }
     }
 
+    /**
+     * Prompts the user for a moon mission id, retrieves that mission from the repository,
+     * and displays its details if found.
+     *
+     * If no mission matches the entered id, prints a not-found message; if the input is not
+     * a valid integer, prints an invalid input message.
+     *
+     * @param scanner the Scanner to read user input from
+     */
     private void getMoonMissionById(Scanner scanner) {
         System.out.println("Enter moon mission id: ");
         String inputId = scanner.nextLine().trim();
@@ -206,6 +259,15 @@ public class Main {
         }
     }
 
+    /**
+     * Prompts the user for a year and displays how many moon missions were launched that year.
+     *
+     * Reads a line from the provided Scanner, parses it as an integer year, queries the repository
+     * for the mission count, and prints either the count or a message indicating no missions were found.
+     * If the input is not a valid integer, prints an "Invalid input." message.
+     *
+     * @param scanner the Scanner to read user input from
+     */
     private void countMoonMissionsByYear(Scanner scanner) {
         System.out.println("Enter a year to find out number of missions launched: ");
         String inputYear = scanner.nextLine().trim();
@@ -224,6 +286,20 @@ public class Main {
         }
     }
 
+    /**
+     * Prompts the user for account details, validates the input, and creates the account when valid.
+     *
+     * <p>Validation performed:
+     * <ul>
+     *   <li>All fields must be non-empty.</li>
+     *   <li>SSN must match the pattern "xxxxxx-xxxx".</li>
+     *   <li>Password must be at least 6 characters long.</li>
+     * </ul>
+     * If validation succeeds, the method attempts to persist the account via the account repository and
+     * prints success or failure messages. Validation failures and repository errors are reported to standard output.
+     *
+     * @param scanner the Scanner used to read user input
+     */
     private void createAccount(Scanner scanner) {
 
         System.out.println("To create a new account please enter your information below:");
@@ -268,8 +344,17 @@ public class Main {
         }
     }
 
+    /**
+     * Update an account's password after validating that a user is logged in and the provided input is valid.
+     *
+     * Prompts for a user id and a new password, verifies the caller is authenticated, ensures the password is provided
+     * and at least 6 characters long, parses the user id as an integer, attempts to update the stored password, and
+     * prints success or error messages for each outcome (validation failure, invalid id, or update failure).
+     *
+     * @param scanner the Scanner to read user input from
+     */
     private void updateAccountPassword(Scanner scanner) {
-//        // prompts: user_id, new password; prints confirmation
+
         if (this.loggedInUserId == null) {
             System.out.println("Error you must be logged in to update your password.");
             return;
@@ -291,23 +376,27 @@ public class Main {
             return;
         }
 
-        try {
-            int userId = Integer.parseInt(inputId);
-            boolean success = accountRepository.updateAccountPassword(newPassword, userId);
-
-            if (success) {
-                System.out.println("Account updated successfully!");
-            } else {
-                System.out.println("Failed to update account.");
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Error: Invalid input. User id must be a whole number.");
-
+        int userId = Integer.parseInt(inputId);
+        boolean success = accountRepository.updateAccountPassword(newPassword, userId);
+        if (success) {
+            System.out.println("Account updated successfully!");
+        } else  {
+            System.out.println("Failed to update account.");
         }
     }
 
+    /**
+     * Deletes the account of the currently logged-in user after confirming the user id from input.
+     *
+     * If no user is logged in the method prints an error and returns. Prompts for a user id, attempts
+     * to delete the account via the account repository, prints success or failure messages, and clears
+     * the stored logged-in user id when deletion succeeds. Prints an error message for invalid numeric
+     * input or repository errors.
+     *
+     * @param scanner the Scanner to read user input from (used to obtain the user id)
+     */
     private void deleteAccount(Scanner scanner) {
-       // prompts: user_id; prints confirmation
+
         if (this.loggedInUserId == null) {
             System.out.println("Error you must be logged in to delete your account.");
             return;
