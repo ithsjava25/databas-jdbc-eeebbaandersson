@@ -321,7 +321,7 @@ public class Main {
         }
 
         if (isValid && !ssn.matches("\\d{6}-\\d{4}")) {
-            System.out.println("Error: Invalid Social Security Number. Use format XXXX-XXXXX.");
+            System.out.println("Error: Invalid Social Security Number. Use format xxxxxx-xxxx.");
             isValid = false;
         }
 
